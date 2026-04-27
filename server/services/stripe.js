@@ -109,6 +109,8 @@ async function createCheckoutSession({ customerId, plan, cycle = 'monthly', succ
     line_items: lineItems,
     success_url: successUrl + '?session_id={CHECKOUT_SESSION_ID}',
     cancel_url:  cancelUrl,
+    // Include plan in both session and subscription metadata so webhook can read it
+    metadata: { plan, cycle },
     subscription_data: {
       metadata: { plan, cycle },
     },

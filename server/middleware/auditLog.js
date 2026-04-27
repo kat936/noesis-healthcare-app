@@ -16,6 +16,21 @@ const db = require('../db');
 const MAX_LOGS = 10000;
 let auditLogs = [];
 
+// ── PHI path sanitizer (HIPAA §164.514(b)) ───────────────────────────────────
+// Replace dynamic path segments that could contain PHI identifiers with tokens.
+// Patterns: UUIDs, numeric IDs ≥ 4 digits, NPI (exactly 10 digits), DEA numbers.
+const UUID_RE    = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+const NPI_RE     = /\b\d{10}\b/g;       // 10-digit NPI — must come before generic numeric
+const NUMERIC_RE = /\b\d{4,}\b/g;       // numeric IDs ≥ 4 digits
+
+function sanitizePath(rawPath) {
+  if (!rawPath) return rawPath;
+  return rawPath
+    .replace(UUID_RE,    ':id')
+    .replace(NPI_RE,     ':npi')
+    .replace(NUMERIC_RE, ':id');
+}
+
 /**
  * Persist a single log entry to the database (async, non-blocking).
  */
@@ -52,13 +67,14 @@ function auditLogMiddleware(req, res, next) {
   const originalSend = res.send.bind(res);
 
   res.send = function (data) {
+    const safePath = sanitizePath(req.path);
     const entry = {
       timestamp: new Date().toISOString(),
       userId: req.user?.id || 'anonymous',
       userRole: req.user?.role || 'unauthenticated',
-      action: `${req.method} ${req.path}`,
+      action: `${req.method} ${safePath}`,
       method: req.method,
-      path: req.path,
+      path: safePath,   // sanitized — no raw patient/member IDs in audit trail
       statusCode: res.statusCode,
       ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown',

@@ -270,8 +270,8 @@ router.get('/aging', authenticate, requirePlan('solo', 'group', 'enterprise'), a
   }
 });
 
-// ── GET /analytics ────────────────────────────────────────────────────────────
-router.get('/analytics', authenticate, requirePlan('group', 'enterprise'), apiLimiter, async (req, res) => {
+// ── GET /analytics — available to all plans (solo gets summary, group/enterprise full) ──
+router.get('/analytics', authenticate, requirePlan('solo', 'group', 'enterprise'), apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {
       const result = await db.query(`
@@ -342,13 +342,23 @@ router.post('/contact-sales', submissionLimiter, async (req, res) => {
   }
 });
 
-// ── POST /webhook — Stripe webhook (raw body) ─────────────────────────────────
-router.post('/webhook', strictLimiter, async (req, res) => {
+// ── POST /webhook — Stripe webhook ───────────────────────────────────────────
+// IMPORTANT: This route is mounted in index.js with express.raw() BEFORE express.json()
+// so that req.body is a raw Buffer here (required for Stripe HMAC sig validation).
+// The router also handles this path for non-webhook requests normally.
+router.post('/webhook', strictLimiter, webhookHandler);
+
+async function webhookHandler(req, res) {
   try {
     const signature = req.headers['stripe-signature'];
     if (!signature) { return res.status(400).json({ error: 'Missing stripe-signature', code: 'MISSING_SIG' }); }
 
-    const rawBody = JSON.stringify(req.body); // Note: use express.raw() for proper sig validation
+    // req.body is a raw Buffer when mounted with express.raw() in index.js
+    // Fall back to re-serializing if somehow body-parser ran first (dev only)
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(JSON.stringify(req.body));
+
     const { valid, event, error } = stripe.validateWebhook(rawBody, signature);
 
     if (!valid) { return res.status(400).json({ error: 'Invalid webhook signature', code: 'INVALID_SIG', details: error }); }
@@ -358,7 +368,7 @@ router.post('/webhook', strictLimiter, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Webhook processing failed', code: 'WEBHOOK_ERROR', details: err.message });
   }
-});
+}
 
 async function handleWebhookEvent(event) {
   const { type, data } = event;
@@ -366,11 +376,16 @@ async function handleWebhookEvent(event) {
   switch (type) {
     case 'checkout.session.completed': {
       const session = data.object;
-      console.warn(`[billing] Checkout completed: customer=${session.customer} sub=${session.subscription}`);
+      // Derive plan from subscription metadata (set at checkout creation time)
+      // Fall back to 'solo' only if metadata is missing
+      const checkoutPlan = session.metadata?.plan
+        || session.subscription_data?.metadata?.plan
+        || 'solo';
+      console.warn(`[billing] Checkout completed: customer=${session.customer} sub=${session.subscription} plan=${checkoutPlan}`);
       if (db.isConnected() && session.customer) {
         await db.query(
           `UPDATE users SET stripe_subscription_id = $1, plan = $2 WHERE stripe_customer_id = $3`,
-          [session.subscription, 'solo', session.customer]
+          [session.subscription, checkoutPlan, session.customer]
         ).catch(() => {});
       }
       break;
@@ -414,4 +429,7 @@ async function handleWebhookEvent(event) {
   }
 }
 
+// Export both the router AND the raw webhook handler
+// index.js mounts webhookHandler with express.raw() before express.json()
+router.webhookHandler = webhookHandler;
 module.exports = router;

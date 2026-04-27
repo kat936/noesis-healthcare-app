@@ -11,7 +11,7 @@ git add -A
 
 echo.
 echo Committing...
-git commit -m "update: push latest changes to main"
+git commit -m "security: CTO/HIPAA audit fixes — session timeout, JWT blacklist, Stripe webhook, plan gating, PHI path scrubbing"
 
 echo.
 echo Pushing to GitHub...

@@ -82,7 +82,7 @@ const api = {
   },
 
   getEligibility: async (token, memberId, planId) => {
-    const data = await apiFetch('/eligibility/check', token, {
+    const data = await apiFetch('/eligibility/verify', token, {
       method: 'POST',
       body: JSON.stringify({ memberId, planId }),
     });

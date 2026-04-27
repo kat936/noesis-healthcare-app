@@ -6,6 +6,7 @@ const { validate } = require('../middleware/validate');
 const { loginSchema } = require('../schemas/validation');
 const db = require('../db');
 
+const { clearActivity } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -84,12 +85,12 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
       success: true,
       token,
       user: {
-        id: user.id,
+        id:    user.id,
         email: user.email,
-        role: user.role,
-        plan: user.plan,
+        role:  user.role,
+        plan:  user.plan,
       },
-      expiresIn: '1h',
+      expiresIn: 3600, // seconds — FIX: was string '1h', frontend does * 1000 so needs number
     });
   } catch (err) {
     console.error('Login error:', err.message);
@@ -107,10 +108,13 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
  */
 router.post('/logout', authenticate, async (req, res) => {
   try {
-    const { blacklistToken } = require('../utils/redis');
-    if (req.user.exp) {
-      await blacklistToken(req.user.jti || req.user.id, req.user.exp * 1000);
+    const redis = require('../utils/redis');
+    // Blacklist by full token string (matches isBlacklisted check in authenticate)
+    if (req.token && req.user?.exp) {
+      await redis.blacklistToken(req.token, req.user.exp * 1000);
     }
+    // Clear HIPAA session activity record so inactivity window resets
+    await clearActivity(req.user.id);
   } catch {
     // Redis unavailable — logout still succeeds; client discards token
   }
@@ -125,7 +129,7 @@ router.post('/logout', authenticate, async (req, res) => {
 router.post('/refresh', authenticate, (req, res) => {
   try {
     const newToken = generateToken(req.user);
-    res.json({ success: true, token: newToken, expiresIn: '1h' });
+    res.json({ success: true, token: newToken, expiresIn: 3600 });
   } catch (err) {
     res.status(500).json({ error: 'Token refresh failed', code: 'REFRESH_ERROR' });
   }
@@ -153,7 +157,7 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const { email, password, role = 'provider_staff', plan = 'essentials' } = req.body;
+    const { email, password, role = 'provider_staff', plan = 'solo' } = req.body;
 
     if (!email || !password || password.length < 10) {
       return res.status(400).json({ error: 'Email and password (min 10 chars) required', code: 'VALIDATION_ERROR' });
