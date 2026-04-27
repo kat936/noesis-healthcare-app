@@ -17,8 +17,19 @@ async function apiFetch(path, token, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) { headers['Authorization'] = `Bearer ${token}`; }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+
+  // Broadcast remaining session time from backend header
+  const remaining = res.headers.get('X-Session-Remaining');
+  if (remaining) {
+    window.dispatchEvent(new CustomEvent('noesis-session', { detail: { remaining: parseInt(remaining, 10) } }));
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    // Session expired by inactivity — broadcast so App can handle
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent('noesis-session', { detail: { remaining: 0, expired: true } }));
+    }
     throw new Error(body.error || `Request failed: ${res.status}`);
   }
   return res.json();
@@ -95,6 +106,24 @@ const api = {
     const data = await apiFetch(`/legal/${key}`, null);
     return data.content || data;
   },
+
+  createCheckoutSession: async (token, plan, interval = 'monthly') => {
+    const data = await apiFetch('/billing/checkout', token, {
+      method: 'POST',
+      body: JSON.stringify({
+        plan,
+        interval,
+        successUrl: window.location.href.split('?')[0] + '?checkout=success',
+        cancelUrl:  window.location.href.split('?')[0],
+      }),
+    });
+    return data;
+  },
+
+  refreshSession: async (token) => {
+    const data = await apiFetch('/auth/refresh', token, { method: 'POST' });
+    return data;
+  },
 };
 
 // ============ VALIDATION & SECURITY ============
@@ -140,17 +169,79 @@ const statusColorMap = {
 };
 
 const PLAN_FEATURES = {
-  essentials: ['Claims Management', 'Eligibility Verification', 'Secure Messaging'],
-  professional: ['Claims Management', 'Eligibility Verification', 'Secure Messaging', 'Prior Authorization', 'Analytics', 'Guardrails', 'Denials', 'Cost Estimator', 'Claims Scrubbing', 'Payments'],
-  enterprise: ['Claims Management', 'Eligibility Verification', 'Secure Messaging', 'Prior Authorization', 'Analytics', 'Guardrails', 'Contracts', 'Security Center', 'Growth Engine', 'API Access', 'Denials', 'A/R Aging', 'Adjudication', 'Fraud Detection', 'Network', 'Appeals', 'Quality Metrics'],
+  solo: {
+    displayName: 'Solo',
+    price: '$299/mo',
+    includedClaims: 500,
+    overageRate: '$0.45',
+    includedProviders: 3,
+    trial: '14-day free trial',
+    features: [
+      'Claims Management (500 claims/mo)',
+      'Eligibility Verification (live payer check)',
+      'Secure HIPAA Messaging',
+      'Claims Scrubbing',
+      'ERA / Payment Posting',
+      'Dashboard & Basic Analytics',
+      'NPI & FDA Data Integrations',
+      'Audit Trail (6yr retention)',
+      'Up to 3 provider accounts',
+    ],
+    locked: ['Prior Authorization', 'A/R Aging', 'Guardrails', 'Contracts', 'Security Center', 'Growth Engine'],
+  },
+  group: {
+    displayName: 'Group Practice',
+    price: '$799/mo',
+    includedClaims: 2000,
+    overageRate: '$0.30',
+    includedProviders: 20,
+    trial: '14-day free trial',
+    popular: true,
+    features: [
+      'Everything in Solo',
+      'Claims Management (2,000 claims/mo)',
+      'Prior Authorization workflows',
+      'A/R Aging & Denial Analytics',
+      'Guardrails pre-submission checks',
+      'Batch Eligibility (up to 50 patients)',
+      'Advanced Analytics & Reporting',
+      'Up to 20 provider accounts',
+      'EDI 837P/835 clearinghouse (configurable)',
+      'EHR FHIR R4 connector (configurable)',
+    ],
+    locked: ['Contracts', 'Security Center', 'Growth Engine'],
+  },
+  enterprise: {
+    displayName: 'Enterprise',
+    price: 'Custom',
+    includedClaims: 'Unlimited',
+    overageRate: 'Negotiated',
+    includedProviders: 'Unlimited',
+    trial: null,
+    features: [
+      'Everything in Group Practice',
+      'Unlimited claims & providers',
+      'Adjudication & Fraud Detection',
+      'Network Management & Credentialing',
+      'Contracts Management',
+      'Security Center (HIPAA dashboard)',
+      'Growth Engine',
+      'Full API access',
+      'HEDIS Quality Metrics',
+      'Dedicated onboarding & BAA',
+      'SLA & uptime guarantee',
+    ],
+    locked: [],
+  },
 };
 
 const INTEGRATIONS = [
-  { name: 'NPI Registry', provider: 'CMS (NPPES)', status: 'ACTIVE', lastVerified: '2026-04-12', affectsOutput: true },
-  { name: 'OpenFDA', provider: 'FDA', status: 'ACTIVE', lastVerified: '2026-04-12', affectsOutput: true },
-  { name: 'Stripe', provider: 'Stripe Inc.', status: 'CONFIGURED', lastVerified: '2026-04-10', affectsOutput: true },
-  { name: 'EDI 837/835', provider: 'Clearinghouse', status: 'PLANNED', lastVerified: null, affectsOutput: false },
-  { name: 'HL7 FHIR R4', provider: 'FHIR Standard', status: 'PLANNED', lastVerified: null, affectsOutput: false },
+  { name: 'NPI Registry', provider: 'CMS / NPPES', status: 'ACTIVE', lastVerified: '2026-04-12', affectsOutput: true },
+  { name: 'OpenFDA Drug Database', provider: 'U.S. FDA', status: 'ACTIVE', lastVerified: '2026-04-12', affectsOutput: true },
+  { name: 'Stripe Billing', provider: 'Stripe Inc.', status: 'CONFIGURED', lastVerified: '2026-04-10', affectsOutput: true },
+  { name: 'EDI 837P/835 Clearinghouse', provider: 'Configurable (Office Ally / Availity)', status: 'READY', lastVerified: null, affectsOutput: false },
+  { name: 'Payer Eligibility 270/271', provider: 'Availity (2,800+ payers)', status: 'READY', lastVerified: null, affectsOutput: false },
+  { name: 'HL7 FHIR R4 EHR Connector', provider: 'Epic / Athenahealth / Cerner', status: 'READY', lastVerified: null, affectsOutput: false },
 ];
 
 // ============ SHARED COMPONENTS ============
@@ -806,7 +897,7 @@ const EligibilityModule = ({ token }) => {
 
 // ============ PRIOR AUTH MODULE ============
 const PriorAuthModule = ({ token, plan }) => {
-  if (plan === 'essentials') return <LockedModule moduleName="Prior Authorization" requiredPlan="Professional" />;
+  if (plan === 'solo') return <LockedModule moduleName="Prior Authorization" requiredPlan="Group Practice or higher" />;
   return (
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">Prior Authorization Module</h2>
@@ -1220,7 +1311,7 @@ const AnalyticsModule = ({ token, plan, userRole }) => {
     <div className="space-y-6">
       <div className="flex gap-2 mb-4">
         <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'overview' ? 'bg-teal-500/20 text-teal-300' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700/70'}`}>Overview</button>
-        {plan === 'professional' && <button onClick={() => setActiveTab('aging')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'aging' ? 'bg-teal-500/20 text-teal-300' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700/70'}`}>A/R Aging</button>}
+        {(plan === 'group' || plan === 'enterprise') && <button onClick={() => setActiveTab('aging')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'aging' ? 'bg-teal-500/20 text-teal-300' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700/70'}`}>A/R Aging</button>}
         {isInsurance && <button onClick={() => setActiveTab('quality')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'quality' ? 'bg-teal-500/20 text-teal-300' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700/70'}`}>Quality Metrics</button>}
       </div>
 
@@ -1295,7 +1386,7 @@ const AnalyticsModule = ({ token, plan, userRole }) => {
 
 // ============ GUARDRAILS MODULE ============
 const GuardrailsModule = ({ token, plan }) => {
-  if (plan === 'essentials') return <LockedModule moduleName="Guardrails" requiredPlan="Professional" />;
+  if (plan === 'solo') return <LockedModule moduleName="Guardrails" requiredPlan="Group Practice or higher" />;
   return (
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">Guardrails Module</h2>
@@ -1366,7 +1457,7 @@ const generateRolePermissions = () => {
 };
 
 const SecurityCenterModule = ({ plan, isMasked, setIsMasked }) => {
-  if (plan !== 'enterprise') return <LockedModule moduleName="Security Center" requiredPlan="Enterprise" />;
+  if (plan !== 'enterprise') return <LockedModule moduleName="Security Center" requiredPlan="Enterprise — contact sales" />;
 
   const [activeTab, setActiveTab] = useState('overview');
   const [minimumNecessary, setMinimumNecessary] = useState(true);
@@ -2241,13 +2332,268 @@ const IntegrationStatusModule = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className={`text-sm font-semibold ${int.status === 'ACTIVE' ? 'text-green-400' : int.status === 'CONFIGURED' ? 'text-blue-400' : 'text-slate-400'}`}>{int.status}</p>
-                {int.lastVerified && <p className="text-xs text-slate-500">{int.lastVerified}</p>}
+                <p className={`text-sm font-semibold ${
+                  int.status === 'ACTIVE'     ? 'text-green-400' :
+                  int.status === 'CONFIGURED' ? 'text-blue-400'  :
+                  int.status === 'READY'      ? 'text-amber-400' :
+                  'text-slate-400'
+                }`}>{int.status}</p>
+                {int.lastVerified && <p className="text-xs text-slate-500">Verified {int.lastVerified}</p>}
+                {int.status === 'READY' && <p className="text-xs text-slate-500">Set env vars to activate</p>}
               </div>
               {int.affectsOutput && <CheckCircle size={20} className="text-green-400" />}
+              {int.status === 'READY' && <Plug size={20} className="text-amber-400/60" />}
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+};
+
+// ============ SESSION TIMEOUT WARNING ============
+const SessionTimeoutWarning = ({ secondsRemaining, onStayLoggedIn, onLogout }) => {
+  const [secs, setSecs] = useState(secondsRemaining);
+
+  useEffect(() => {
+    setSecs(secondsRemaining);
+  }, [secondsRemaining]);
+
+  useEffect(() => {
+    if (secs <= 0) return;
+    const t = setTimeout(() => setSecs((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [secs]);
+
+  const mins = Math.floor(secs / 60);
+  const sec  = secs % 60;
+  const isUrgent = secs < 60;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className={`bg-slate-800 border rounded-xl max-w-sm w-full shadow-2xl ${isUrgent ? 'border-red-500/60' : 'border-amber-500/60'}`}>
+        <div className={`px-6 py-4 border-b flex items-center gap-3 ${isUrgent ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/40 bg-amber-500/10'}`}>
+          <Clock size={24} className={isUrgent ? 'text-red-400' : 'text-amber-400'} />
+          <h3 className={`text-lg font-bold ${isUrgent ? 'text-red-300' : 'text-amber-300'}`}>
+            Session Expiring Soon
+          </h3>
+        </div>
+        <div className="px-6 py-6 text-center">
+          <p className="text-slate-300 text-sm mb-4">
+            Your session will expire due to inactivity in:
+          </p>
+          <div className={`text-5xl font-bold font-mono mb-4 ${isUrgent ? 'text-red-400' : 'text-amber-400'}`}>
+            {mins > 0 ? `${mins}m ` : ''}{String(sec).padStart(2, '0')}s
+          </div>
+          <p className="text-slate-400 text-xs mb-6">
+            HIPAA §164.312(a)(2)(iii) — automatic session logoff after 30 min inactivity
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onLogout}
+              className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-semibold transition-colors text-sm"
+            >
+              Sign Out
+            </button>
+            <button
+              onClick={onStayLoggedIn}
+              className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors text-sm text-white ${isUrgent ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-500 hover:bg-teal-600'}`}
+            >
+              Stay Logged In
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============ PRICING PAGE ============
+const PricingPage = ({ token, currentPlan, onUpgrade }) => {
+  const [loading, setLoading] = useState(null);
+  const [interval, setInterval] = useState('monthly');
+  const [error, setError] = useState('');
+
+  const ANNUAL_DISCOUNT = 0.17; // ~2 months free
+
+  const getPriceDisplay = (plan) => {
+    if (plan === 'enterprise') return { main: 'Custom', sub: 'Contact sales for enterprise pricing' };
+    const monthly = plan === 'solo' ? 299 : 799;
+    const annual  = Math.round(monthly * (1 - ANNUAL_DISCOUNT));
+    return interval === 'monthly'
+      ? { main: `$${monthly}`, sub: '/month, billed monthly' }
+      : { main: `$${annual}`, sub: `/month, billed $${annual * 12}/year` };
+  };
+
+  const handleSubscribe = async (plan) => {
+    if (plan === 'enterprise') {
+      window.location.href = 'mailto:sales@noesis.io?subject=Enterprise%20Inquiry';
+      return;
+    }
+    setError('');
+    setLoading(plan);
+    try {
+      const result = await api.createCheckoutSession(token, plan, interval);
+      if (result.url) {
+        window.location.href = result.url;
+      } else if (result.demo) {
+        alert(`[Demo mode] Stripe not configured.\n\nIn production this would redirect to:\n${result.sessionId || 'Stripe Checkout'}\n\nPlan: ${plan} • Interval: ${interval}`);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to start checkout');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white mb-3">Simple, Transparent Pricing</h2>
+        <p className="text-slate-400 max-w-xl mx-auto">
+          Hybrid pricing model — flat monthly base plus per-claim overages only when you exceed your included volume.
+          No surprises.
+        </p>
+
+        {/* Billing interval toggle */}
+        <div className="mt-6 inline-flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-xl p-1">
+          <button
+            onClick={() => setInterval('monthly')}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${interval === 'monthly' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setInterval('annual')}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${interval === 'annual' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            Annual
+            <span className="bg-green-500/20 text-green-300 text-xs px-2 py-0.5 rounded-full font-bold">Save 17%</span>
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm max-w-lg mx-auto text-center">
+          {error}
+        </div>
+      )}
+
+      {/* Plan cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {['solo', 'group', 'enterprise'].map((planKey) => {
+          const plan    = PLAN_FEATURES[planKey];
+          const priceD  = getPriceDisplay(planKey);
+          const isCurrent = currentPlan === planKey;
+          const isPopular = plan.popular;
+
+          return (
+            <div
+              key={planKey}
+              className={`relative flex flex-col rounded-xl border transition-all ${
+                isPopular
+                  ? 'border-teal-500/60 bg-teal-500/5 shadow-lg shadow-teal-500/10'
+                  : 'border-slate-700/50 bg-slate-800/50'
+              }`}
+            >
+              {isPopular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-teal-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
+                  MOST POPULAR
+                </div>
+              )}
+
+              <div className="p-6 border-b border-slate-700/50">
+                <h3 className="text-xl font-bold text-white mb-1">{plan.displayName}</h3>
+                {plan.trial && (
+                  <p className="text-xs text-green-400 font-semibold mb-3">{plan.trial}</p>
+                )}
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-4xl font-bold text-white">{priceD.main}</span>
+                </div>
+                <p className="text-xs text-slate-400">{priceD.sub}</p>
+                {planKey !== 'enterprise' && (
+                  <div className="mt-3 text-xs text-slate-500 space-y-0.5">
+                    <p>Includes {plan.includedClaims.toLocaleString()} claims/mo</p>
+                    <p>Overage: {plan.overageRate}/claim above limit</p>
+                    <p>Up to {plan.includedProviders} provider accounts</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 p-6">
+                <ul className="space-y-2 mb-6">
+                  {plan.features.map((f, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <CheckCircle size={14} className="text-teal-400 mt-0.5 flex-shrink-0" />
+                      <span className="text-slate-300">{f}</span>
+                    </li>
+                  ))}
+                  {plan.locked.map((f, i) => (
+                    <li key={`locked-${i}`} className="flex items-start gap-2 text-sm opacity-40">
+                      <Lock size={14} className="text-slate-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-slate-500">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleSubscribe(planKey)}
+                  disabled={loading === planKey || isCurrent}
+                  className={`w-full py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                    isCurrent
+                      ? 'bg-slate-700 text-slate-400 cursor-default'
+                      : isPopular
+                      ? 'bg-teal-500 hover:bg-teal-600 text-white'
+                      : planKey === 'enterprise'
+                      ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
+                      : 'bg-slate-700 hover:bg-slate-600 text-white'
+                  }`}
+                >
+                  {loading === planKey ? (
+                    <><Loader size={16} className="animate-spin" /> Redirecting to Stripe…</>
+                  ) : isCurrent ? (
+                    <><CheckCircle size={16} /> Current Plan</>
+                  ) : planKey === 'enterprise' ? (
+                    'Contact Sales'
+                  ) : (
+                    `Get Started — ${plan.displayName}`
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Overage explainer */}
+      <div className="max-w-5xl mx-auto bg-slate-800/50 border border-slate-700/50 rounded-xl p-6">
+        <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+          <DollarSign size={18} className="text-teal-400" /> How claim overages work
+        </h4>
+        <p className="text-slate-400 text-sm leading-relaxed">
+          Each plan includes a monthly claim allowance. If your practice submits more claims than included, you're billed
+          a small per-claim overage fee automatically via Stripe at the end of your billing period.
+          There are no surprises — you can view your usage in the billing portal at any time.
+          Enterprise plans negotiate a custom volume rate with no overages.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-slate-700/30 rounded-lg p-4">
+            <p className="text-teal-300 font-semibold">Solo example</p>
+            <p className="text-slate-400 mt-1">520 claims × $0.45 overage on 20 claims above 500 limit = <span className="text-white font-bold">$9 overage</span> added to $299 base</p>
+          </div>
+          <div className="bg-slate-700/30 rounded-lg p-4">
+            <p className="text-teal-300 font-semibold">Group example</p>
+            <p className="text-slate-400 mt-1">2,300 claims × $0.30 overage on 300 claims above 2,000 limit = <span className="text-white font-bold">$90 overage</span> added to $799 base</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Enterprise CTA */}
+      <div className="max-w-5xl mx-auto text-center">
+        <p className="text-slate-400 text-sm">
+          Need a BAA, custom SLA, or dedicated onboarding? <button onClick={() => handleSubscribe('enterprise')} className="text-teal-400 hover:text-teal-300 font-semibold">Talk to our sales team →</button>
+        </p>
       </div>
     </div>
   );
@@ -2262,12 +2608,44 @@ export default function NoesisApp() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [consentsAccepted, setConsentsAccepted] = useState(false);
   const [userRole, setUserRole] = useState('Provider Staff');
+  const [sessionSecsRemaining, setSessionSecsRemaining] = useState(null);
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+
+  // Listen for session-remaining events from apiFetch
+  // Uses state setters directly (stable refs) to avoid stale closure issues
+  useEffect(() => {
+    const handler = (e) => {
+      const { remaining, expired } = e.detail;
+      if (expired) {
+        setAuthState({ token: null, user: null, expiresIn: 0 });
+        setSessionExpiry(null);
+        setConsentsAccepted(false);
+        setShowTimeoutWarning(false);
+        setSessionSecsRemaining(null);
+        return;
+      }
+      setSessionSecsRemaining(remaining);
+      setShowTimeoutWarning(remaining > 0 && remaining <= 300);
+    };
+    window.addEventListener('noesis-session', handler);
+    return () => window.removeEventListener('noesis-session', handler);
+  }, []);
+
+  // Check URL for Stripe checkout success
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      setActiveTab('Dashboard');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const handleLogin = (result) => {
     setAuthState(result);
     setUserRole(Math.random() > 0.7 ? 'Insurance Rep' : 'Provider Staff');
     setConsentsAccepted(false);
     setSessionExpiry(Date.now() + result.expiresIn * 1000);
+    setShowTimeoutWarning(false);
   };
 
   const handleLogout = () => {
@@ -2275,6 +2653,21 @@ export default function NoesisApp() {
     setSessionExpiry(null);
     setActiveTab('Dashboard');
     setConsentsAccepted(false);
+    setShowTimeoutWarning(false);
+    setSessionSecsRemaining(null);
+  };
+
+  const handleStayLoggedIn = async () => {
+    setShowTimeoutWarning(false);
+    try {
+      const result = await api.refreshSession(authState.token);
+      if (result.token) {
+        setAuthState((prev) => ({ ...prev, token: result.token }));
+        setSessionExpiry(Date.now() + (result.expiresIn || 3600) * 1000);
+      }
+    } catch {
+      // Refresh failed — just dismiss the warning; next API call will catch expiry
+    }
   };
 
   const handleConsentsComplete = () => {
@@ -2292,11 +2685,13 @@ export default function NoesisApp() {
   const isInsurance = userRole === 'Insurance Rep';
   const isProvider = !isInsurance;
 
-  const providerTabs = ['Dashboard', 'Claims', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Legal'];
-  const insuranceTabs = ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Legal'];
+  const providerTabs = ['Dashboard', 'Claims', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
+  const insuranceTabs = ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
   const tabs = isInsurance ? insuranceTabs : providerTabs;
-  const plan = authState.user?.plan || 'professional';
-  const planName = { essentials: 'Essentials', professional: 'Professional', enterprise: 'Enterprise' }[plan];
+  // Normalize legacy plan names (essentials→solo, professional→group)
+  const rawPlan = authState.user?.plan || 'solo';
+  const plan = rawPlan === 'essentials' ? 'solo' : rawPlan === 'professional' ? 'group' : rawPlan;
+  const planName = { solo: 'Solo', group: 'Group Practice', enterprise: 'Enterprise' }[plan] || plan;
 
   const moduleMap = {
     Dashboard: <DashboardModule token={authState.token} userRole={userRole} isMasked={isMasked} />,
@@ -2312,6 +2707,7 @@ export default function NoesisApp() {
     Security: <SecurityCenterModule plan={plan} isMasked={isMasked} setIsMasked={setIsMasked} />,
     Growth: <GrowthEngineModule plan={plan} />,
     Integrations: <IntegrationStatusModule />,
+    Pricing: <PricingPage token={authState.token} currentPlan={plan} onUpgrade={(p) => { /* noop, handled inside */ }} />,
     Legal: <LegalSection />,
     Adjudication: <AdjudicationModule token={authState.token} userRole={userRole} />,
     'Fraud Detection': <FraudDetectionModule token={authState.token} />,
@@ -2321,17 +2717,26 @@ export default function NoesisApp() {
 
   return (
     <div className="flex h-screen bg-slate-900">
+      {/* Session timeout warning overlay */}
+      {showTimeoutWarning && sessionSecsRemaining !== null && (
+        <SessionTimeoutWarning
+          secondsRemaining={sessionSecsRemaining}
+          onStayLoggedIn={handleStayLoggedIn}
+          onLogout={handleLogout}
+        />
+      )}
+
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-slate-800 border-r border-slate-700 overflow-hidden transition-all duration-300 flex flex-col`}>
         <div className="p-6 border-b border-slate-700">
           <h1 className="text-xl font-bold text-teal-400 flex items-center gap-2">
             <Shield size={24} /> Noesis.io
           </h1>
-          <p className="text-xs text-amber-400 mt-2">{isInsurance ? 'INSURANCE' : 'PROVIDER'} • DEMO</p>
+          <p className="text-xs text-amber-400 mt-2">{isInsurance ? 'INSURANCE' : 'PROVIDER'} • {plan.toUpperCase()}</p>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {tabs.map((tab) => {
-            const isLocked = (tab === 'Prior Auth' || tab === 'Analytics' || tab === 'Guardrails') && plan === 'essentials';
+            const isLocked = (tab === 'Prior Auth' || tab === 'Guardrails') && plan === 'solo';
             const isEnterprise = (tab === 'Contracts' || tab === 'Security' || tab === 'Growth') && plan !== 'enterprise';
             return (
               <button
@@ -2339,9 +2744,10 @@ export default function NoesisApp() {
                 onClick={() => setActiveTab(tab)}
                 className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                   activeTab === tab ? 'bg-teal-500/20 text-teal-400' : 'text-slate-300 hover:bg-slate-700/50'
-                }`}
+                } ${tab === 'Pricing' ? 'border border-teal-500/20 text-teal-300' : ''}`}
               >
                 {isLocked || isEnterprise ? <Lock size={16} /> : null}
+                {tab === 'Pricing' ? <DollarSign size={16} /> : null}
                 {tab}
               </button>
             );
@@ -2352,6 +2758,12 @@ export default function NoesisApp() {
             <p className="font-semibold">{authState.user?.email}</p>
             <p className="text-teal-400 font-semibold">{planName} • {userRole}</p>
           </div>
+          <button
+            onClick={() => setActiveTab('Pricing')}
+            className="w-full bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 font-semibold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs mb-1"
+          >
+            <DollarSign size={14} /> Upgrade Plan
+          </button>
           <button onClick={handleLogout} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
             <LogOut size={16} /> Sign Out
           </button>
@@ -2368,7 +2780,9 @@ export default function NoesisApp() {
             </button>
             <div>
               <h2 className="text-2xl font-bold text-white">{activeTab}</h2>
-              {sessionExpiry && <p className="text-xs text-slate-400">Session expires: {new Date(sessionExpiry).toLocaleTimeString()}</p>}
+              {sessionSecsRemaining !== null && sessionSecsRemaining > 0 && !showTimeoutWarning && (
+                <p className="text-xs text-slate-500">Session active · {Math.floor(sessionSecsRemaining / 60)}m remaining</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">

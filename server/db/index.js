@@ -98,13 +98,30 @@ async function initSchema() {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      name TEXT,
       role TEXT NOT NULL DEFAULT 'provider_staff',
       organization_id UUID,
-      plan TEXT NOT NULL DEFAULT 'essentials',
+      organization_name TEXT,
+      npi TEXT,
+      plan TEXT NOT NULL DEFAULT 'solo',
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+  // Add missing columns to existing users table (safe, idempotent)
+  const userCols = [
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_name TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS npi TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT`,
+  ];
+  for (const col of userCols) {
+    await query(col).catch(() => {}); // ignore if already exists
+  }
 
   await query(`
     CREATE TABLE IF NOT EXISTS organizations (
@@ -170,6 +187,54 @@ async function initSchema() {
       read_at TIMESTAMPTZ,
       status TEXT DEFAULT 'sent',
       created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS authorizations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      provider_id TEXT NOT NULL,
+      organization_id UUID,
+      patient_name TEXT NOT NULL,
+      patient_dob TEXT,
+      member_id TEXT,
+      payer_id TEXT NOT NULL,
+      payer_name TEXT,
+      service_type TEXT NOT NULL,
+      cpt_codes TEXT[],
+      icd10_codes TEXT[],
+      requested_date DATE DEFAULT CURRENT_DATE,
+      service_start_date DATE,
+      service_end_date DATE,
+      urgency TEXT DEFAULT 'routine',
+      clinical_notes TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      auth_number TEXT,
+      approved_units INTEGER,
+      denial_reason TEXT,
+      submitted_by TEXT,
+      reviewed_by TEXT,
+      reviewed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS eligibility_checks (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      provider_id TEXT NOT NULL,
+      organization_id UUID,
+      member_id TEXT,
+      patient_name TEXT,
+      payer_id TEXT NOT NULL,
+      payer_name TEXT,
+      service_type TEXT,
+      is_eligible BOOLEAN,
+      plan_name TEXT,
+      result JSONB,
+      source TEXT DEFAULT 'demo',
+      checked_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 
