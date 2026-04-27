@@ -1,206 +1,263 @@
 /**
- * Stripe Billing Service
- * © 2026 Athena Core Technologies
+ * Noesis.io Health — Stripe Billing Service
+ * © 2026 Athena Core Technologies, Inc.
  *
- * Manages subscription lifecycle, billing events, and feature entitlement
- * Validates webhook signatures and checks subscription status
- * All subscription logic is server-side and never exposed to frontend
+ * Handles subscription lifecycle for the hybrid pricing model:
+ *   Solo        $299/mo   (+ $0.45/claim over 500)
+ *   Group       $799/mo   (+ $0.30/claim over 2,000)
+ *   Enterprise  Custom    (invoiced separately)
+ *
+ * Uses real Stripe SDK when STRIPE_SECRET_KEY is configured.
+ * Falls back to demo mode (no real charges) for local dev.
+ *
+ * Webhook events are verified via stripe.webhooks.constructEvent()
+ * and persisted to the DB via the subscriptions table.
  */
 
-class StripeService {
-  constructor() {
-    this.apiKey = process.env.STRIPE_SECRET_KEY;
-    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    this.publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
-    this.isConfigured = !!this.apiKey && !this.apiKey.includes('CHANGE_ME');
+const { PLANS, PLAN_PRICING, PLAN_FEATURES, normalizePlan } = require('../config/roles');
+
+let _stripe = null;
+
+function getStripe() {
+  if (_stripe) { return _stripe; }
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key || key.includes('CHANGE_ME') || key.includes('sk_test_EXAMPLE')) {
+    return null; // demo mode
   }
-
-  /**
-   * Get Stripe integration status
-   */
-  getStatus() {
-    return {
-      provider: 'Stripe',
-      configured: this.isConfigured,
-      mode: this.apiKey?.startsWith('sk_live_') ? 'live' : 'test',
-      features: ['subscriptions', 'invoicing', 'webhooks', 'metered_billing'],
-      requiresWebhook: true
-    };
-  }
-
-  /**
-   * Check if customer has entitlement for feature
-   * Server-side subscription validation
-   * Returns boolean and feature list for customer's plan
-   */
-  async checkEntitlement(customerId, feature) {
-    if (!this.isConfigured) {
-      return {
-        entitled: false,
-        reason: 'Stripe billing not configured',
-        plan: 'free'
-      };
-    }
-
-    // In production: const stripe = require('stripe')(this.apiKey);
-    // const subscriptions = await stripe.subscriptions.list({
-    //   customer: customerId,
-    //   status: 'active',
-    //   limit: 1
-    // });
-    // Then map subscription price to plan and check PLAN_FEATURES
-
-    // Mock implementation for demo
-    const planFeatures = {
-      essentials: ['claims', 'eligibility', 'messaging'],
-      professional: [
-        'claims',
-        'eligibility',
-        'messaging',
-        'authorizations',
-        'analytics',
-        'guardrails'
-      ],
-      enterprise: [
-        'claims',
-        'eligibility',
-        'messaging',
-        'authorizations',
-        'analytics',
-        'guardrails',
-        'contracts',
-        'security',
-        'growth',
-        'api_access',
-        'custom_rules',
-        'white_label'
-      ]
-    };
-
-    // Default to professional for demo
-    const plan = 'professional';
-    const features = planFeatures[plan];
-    const entitled = features.includes(feature);
-
-    return {
-      entitled,
-      plan,
-      features,
-      reason: entitled ? null : `Feature requires upgrade from ${plan} plan`
-    };
-  }
-
-  /**
-   * Validate webhook signature from Stripe
-   * Ensures webhook payload is authentic and from Stripe
-   */
-  validateWebhook(payload, signature) {
-    if (!this.webhookSecret) {
-      throw new Error('Stripe webhook secret not configured');
-    }
-
-    // In production:
-    // const stripe = require('stripe')(this.apiKey);
-    // return stripe.webhooks.constructEvent(payload, signature, this.webhookSecret);
-
-    // Mock implementation for demo
-    return {
-      valid: true,
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          id: 'cs_test_123',
-          customer: 'cus_test_123',
-          subscription: 'sub_test_123',
-          payment_status: 'paid'
-        }
-      }
-    };
-  }
-
-  /**
-   * Handle subscription.created webhook
-   */
-  handleSubscriptionCreated(data) {
-    const subscription = data.object;
-    return {
-      customerId: subscription.customer,
-      subscriptionId: subscription.id,
-      plan: this.mapPriceIdToPlan(subscription.items.data[0].price.id),
-      status: subscription.status,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000)
-    };
-  }
-
-  /**
-   * Handle subscription.updated webhook
-   */
-  handleSubscriptionUpdated(data) {
-    const subscription = data.object;
-    return {
-      customerId: subscription.customer,
-      subscriptionId: subscription.id,
-      plan: this.mapPriceIdToPlan(subscription.items.data[0].price.id),
-      status: subscription.status,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null
-    };
-  }
-
-  /**
-   * Handle invoice.payment_succeeded webhook
-   */
-  handleInvoicePaymentSucceeded(data) {
-    const invoice = data.object;
-    return {
-      invoiceId: invoice.id,
-      customerId: invoice.customer,
-      subscriptionId: invoice.subscription,
-      amount: invoice.amount_paid,
-      currency: invoice.currency,
-      paidAt: new Date(invoice.paid_date * 1000)
-    };
-  }
-
-  /**
-   * Map Stripe price ID to plan name
-   * In production, these IDs come from Stripe dashboard
-   */
-  mapPriceIdToPlan(priceId) {
-    const priceMap = {
-      'price_essentials': 'essentials',
-      'price_professional': 'professional',
-      'price_enterprise': 'enterprise'
-    };
-    return priceMap[priceId] || 'unknown';
-  }
-
-  /**
-   * Get usage metrics for metered billing
-   */
-  async getUsageMetrics(customerId, metricName) {
-    // In production, retrieve from database or Stripe API
-    return {
-      customerId,
-      metric: metricName,
-      currentUsage: 0,
-      resetAt: new Date()
-    };
-  }
-
-  /**
-   * Record usage for metered billing
-   */
-  async recordUsage(customerId, subscriptionItemId, quantity) {
-    // In production: const stripe = require('stripe')(this.apiKey);
-    // await stripe.subscriptionItems.createUsageRecord(subscriptionItemId, { quantity });
-    return {
-      success: true,
-      recorded: quantity,
-      timestamp: new Date().toISOString()
-    };
+  try {
+    _stripe = require('stripe')(key, { apiVersion: '2024-06-20' });
+    return _stripe;
+  } catch {
+    return null; // stripe package not installed yet
   }
 }
 
-module.exports = new StripeService();
+// ── Price ID → plan mapping ───────────────────────────────────────────────────
+function buildPriceMap() {
+  const map = {};
+  for (const [plan, pricing] of Object.entries(PLAN_PRICING)) {
+    if (pricing.stripeMonthlyPriceId) { map[pricing.stripeMonthlyPriceId] = { plan, cycle: 'monthly' }; }
+    if (pricing.stripeAnnualPriceId)  { map[pricing.stripeAnnualPriceId]  = { plan, cycle: 'annual'  }; }
+  }
+  return map;
+}
+
+function mapPriceIdToPlan(priceId) {
+  const map = buildPriceMap();
+  return map[priceId] || { plan: 'unknown', cycle: 'unknown' };
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function getStatus() {
+  const stripe = getStripe();
+  const key = process.env.STRIPE_SECRET_KEY || '';
+  return {
+    provider:        'Stripe',
+    configured:      !!stripe,
+    mode:            key.startsWith('sk_live_') ? 'live' : 'test',
+    features:        ['subscriptions', 'checkout', 'customer_portal', 'webhooks', 'metered_billing'],
+    publishableKey:  process.env.STRIPE_PUBLISHABLE_KEY || null,
+    webhookConfigured: !!process.env.STRIPE_WEBHOOK_SECRET,
+  };
+}
+
+// ── Create Stripe Customer ────────────────────────────────────────────────────
+async function createCustomer({ email, name, organizationId, plan }) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return { id: `cus_demo_${Date.now()}`, demo: true };
+  }
+  return stripe.customers.create({
+    email,
+    name,
+    metadata: { organizationId: organizationId || '', plan: plan || '' },
+  });
+}
+
+// ── Create Checkout Session ───────────────────────────────────────────────────
+async function createCheckoutSession({ customerId, plan, cycle = 'monthly', successUrl, cancelUrl, trialDays }) {
+  const stripe = getStripe();
+  const pricing = PLAN_PRICING[plan];
+
+  if (!pricing || pricing.contactSales) {
+    throw new Error('Enterprise plan requires a sales quote — use /billing/contact-sales');
+  }
+
+  const priceId = cycle === 'annual' ? pricing.stripeAnnualPriceId : pricing.stripeMonthlyPriceId;
+  const overagePriceId = pricing.stripeOveragePriceId;
+
+  if (!stripe) {
+    // Demo mode — return a mock session
+    return {
+      id:          `cs_demo_${Date.now()}`,
+      url:         successUrl + '?session_id=demo&plan=' + plan,
+      demo:        true,
+      plan,
+      cycle,
+      monthlyPrice: pricing.monthlyPrice,
+    };
+  }
+
+  const lineItems = [{ price: priceId, quantity: 1 }];
+  if (overagePriceId) {
+    lineItems.push({ price: overagePriceId }); // metered — no quantity
+  }
+
+  const params = {
+    customer:   customerId,
+    mode:       'subscription',
+    line_items: lineItems,
+    success_url: successUrl + '?session_id={CHECKOUT_SESSION_ID}',
+    cancel_url:  cancelUrl,
+    subscription_data: {
+      metadata: { plan, cycle },
+    },
+    allow_promotion_codes: true,
+    billing_address_collection: 'auto',
+  };
+
+  if (trialDays && trialDays > 0) {
+    params.subscription_data.trial_period_days = trialDays;
+  }
+
+  return stripe.checkout.sessions.create(params);
+}
+
+// ── Customer Portal Session ───────────────────────────────────────────────────
+async function createPortalSession({ customerId, returnUrl }) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return { url: returnUrl + '?portal=demo', demo: true };
+  }
+  return stripe.billingPortal.sessions.create({
+    customer:   customerId,
+    return_url: returnUrl,
+  });
+}
+
+// ── Retrieve Subscription ─────────────────────────────────────────────────────
+async function getSubscription(subscriptionId) {
+  const stripe = getStripe();
+  if (!stripe) { return null; }
+  return stripe.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
+}
+
+// ── List Customer Invoices ────────────────────────────────────────────────────
+async function getInvoices(customerId, limit = 12) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return { data: [], demo: true };
+  }
+  return stripe.invoices.list({ customer: customerId, limit });
+}
+
+// ── Cancel Subscription ───────────────────────────────────────────────────────
+async function cancelSubscription(subscriptionId, { atPeriodEnd = true } = {}) {
+  const stripe = getStripe();
+  if (!stripe) { return { id: subscriptionId, cancel_at_period_end: atPeriodEnd, demo: true }; }
+  if (atPeriodEnd) {
+    return stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+  }
+  return stripe.subscriptions.cancel(subscriptionId);
+}
+
+// ── Record Claim Usage (metered overage) ──────────────────────────────────────
+async function recordClaimUsage(subscriptionItemId, quantity, timestamp) {
+  const stripe = getStripe();
+  if (!stripe) { return { recorded: quantity, demo: true }; }
+  return stripe.subscriptionItems.createUsageRecord(subscriptionItemId, {
+    quantity,
+    timestamp: timestamp ? Math.floor(new Date(timestamp).getTime() / 1000) : 'now',
+    action: 'increment',
+  });
+}
+
+// ── Validate Webhook ──────────────────────────────────────────────────────────
+function validateWebhook(rawBody, signature) {
+  const stripe = getStripe();
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripe || !secret) {
+    // Demo mode — trust all webhooks (never do this in production)
+    try {
+      const event = JSON.parse(rawBody);
+      return { valid: true, event };
+    } catch {
+      return { valid: false };
+    }
+  }
+
+  try {
+    const event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+    return { valid: true, event };
+  } catch (err) {
+    return { valid: false, error: err.message };
+  }
+}
+
+// ── Check Feature Entitlement ──────────────────────────────────────────────────
+async function checkEntitlement(userPlan, feature) {
+  const plan = normalizePlan(userPlan) || PLANS.SOLO;
+  const features = PLAN_FEATURES[plan] || [];
+  const entitled = features.includes(feature);
+  return {
+    entitled,
+    plan,
+    features,
+    reason: entitled ? null : `"${feature}" requires a higher plan. Current plan: ${plan}.`,
+  };
+}
+
+// ── Webhook Event Handlers ────────────────────────────────────────────────────
+function parseSubscriptionEvent(subscription) {
+  const priceId = subscription.items?.data?.[0]?.price?.id;
+  const { plan, cycle } = mapPriceIdToPlan(priceId);
+  return {
+    customerId:          subscription.customer,
+    subscriptionId:      subscription.id,
+    plan:                plan || subscription.metadata?.plan || 'unknown',
+    cycle:               cycle || subscription.metadata?.cycle || 'monthly',
+    status:              subscription.status,
+    currentPeriodStart:  new Date(subscription.current_period_start * 1000).toISOString(),
+    currentPeriodEnd:    new Date(subscription.current_period_end   * 1000).toISOString(),
+    cancelAtPeriodEnd:   subscription.cancel_at_period_end,
+    trialEnd:            subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+    overageItemId:       subscription.items?.data?.find((i) => i.price?.recurring?.usage_type === 'metered')?.id || null,
+  };
+}
+
+function parseInvoiceEvent(invoice) {
+  return {
+    invoiceId:      invoice.id,
+    customerId:     invoice.customer,
+    subscriptionId: invoice.subscription,
+    amountPaid:     invoice.amount_paid,
+    amountDue:      invoice.amount_due,
+    currency:       invoice.currency,
+    status:         invoice.status,
+    paidAt:         invoice.status_transitions?.paid_at
+      ? new Date(invoice.status_transitions.paid_at * 1000).toISOString()
+      : null,
+    hostedUrl:      invoice.hosted_invoice_url,
+    pdfUrl:         invoice.invoice_pdf,
+  };
+}
+
+module.exports = {
+  getStatus,
+  getStripe,
+  createCustomer,
+  createCheckoutSession,
+  createPortalSession,
+  getSubscription,
+  getInvoices,
+  cancelSubscription,
+  recordClaimUsage,
+  validateWebhook,
+  checkEntitlement,
+  mapPriceIdToPlan,
+  parseSubscriptionEvent,
+  parseInvoiceEvent,
+  // legacy compat
+  isConfigured: !!getStripe(),
+};

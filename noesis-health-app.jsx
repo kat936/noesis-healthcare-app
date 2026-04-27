@@ -8,185 +8,92 @@ import {
   Plug, AlertTriangle, Info, Loader, ScrollText, ExternalLink, Check, Banknote, TrendingDown,
   Fingerprint, KeyRound, ShieldCheck, FileWarning, Siren, GraduationCap, Database, Wifi, Server,
 } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, StackedBarChart } from 'recharts';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 // ============ API LAYER ============
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api/v1';
+
+async function apiFetch(path, token, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) { headers['Authorization'] = `Bearer ${token}`; }
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 const api = {
   login: async (email, password) => {
-    await new Promise(r => setTimeout(r, 500));
-    if (!email || !password || password.length < 8) throw new Error('Invalid credentials');
-    return {
-      token: 'jwt_' + Math.random().toString(36).substr(2, 20),
-      user: { email, role: 'Provider Staff', plan: 'professional' },
-      expiresIn: 3600,
-    };
+    const data = await apiFetch('/auth/login', null, {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    return { token: data.token, user: data.user, expiresIn: 3600 };
   },
 
-  getClaims: async (token) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 300));
-    return [
-      { id: 'CLM-2024-0001', patient: 'John Anderson', provider: 'Community Medical Center', payer: 'BlueCross', amount: 4500, status: 'Approved', date: '2024-03-15', days: 5, cptCode: '99214', icd10: 'I10', serviceDate: '2024-03-10' },
-      { id: 'CLM-2024-0002', patient: 'Sarah Mitchell', provider: 'Central Health', payer: 'Aetna', amount: 2800, status: 'Paid', date: '2024-03-14', days: 18, cptCode: '99213', icd10: 'J45.9', serviceDate: '2024-03-01' },
-      { id: 'CLM-2024-0003', patient: 'Michael Chen', provider: 'Premier Hospital', payer: 'UnitedHealthcare', amount: 8900, status: 'In Review', date: '2024-03-13', days: 12, cptCode: '70450', icd10: 'R07.9', serviceDate: '2024-02-28' },
-      { id: 'CLM-2024-0004', patient: 'Emma Rodriguez', provider: 'Community Medical Center', payer: 'Cigna', amount: 1200, status: 'Submitted', date: '2024-03-12', days: 3, cptCode: '99211', icd10: 'Z00.00', serviceDate: '2024-03-10' },
-      { id: 'CLM-2024-0005', patient: 'David Thompson', provider: 'Central Health', payer: 'BlueCross', amount: 6200, status: 'Approved', date: '2024-03-11', days: 8, cptCode: '43235', icd10: 'K21.9', serviceDate: '2024-03-03' },
-    ];
+  getClaims: async (token, { status, limit = 50, offset = 0 } = {}) => {
+    const params = new URLSearchParams({ limit, offset });
+    if (status) { params.set('status', status); }
+    const data = await apiFetch(`/claims?${params}`, token);
+    return data.data || [];
   },
 
   getDenials: async (token) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 300));
-    return [
-      { id: 'CLM-2024-0010', patient: 'Lisa Wang', payer: 'BlueCross', amount: 1500, denialCode: 'CO-16', denialReason: 'Claim/service lacks information needed for adjudication', date: '2024-03-10', deadline: '2024-04-10', status: 'New', appStatus: 'Not Started' },
-      { id: 'CLM-2024-0011', patient: 'James Murphy', payer: 'Aetna', amount: 2200, denialCode: 'CO-4', denialReason: 'The procedure code is inconsistent with the modifier used', date: '2024-03-08', deadline: '2024-04-08', status: 'Appealing', appStatus: 'Submitted' },
-      { id: 'CLM-2024-0012', patient: 'Maria Santos', payer: 'UnitedHealthcare', amount: 3400, denialCode: 'CO-29', denialReason: 'The time limit for filing has expired', date: '2024-02-15', deadline: '2024-03-17', status: 'Lost', appStatus: 'Denied' },
-      { id: 'CLM-2024-0013', patient: 'Robert Kim', payer: 'Cigna', amount: 890, denialCode: 'PR-1', denialReason: 'Deductible Amount', date: '2024-03-09', deadline: '2024-04-09', status: 'New', appStatus: 'Not Started' },
-      { id: 'CLM-2024-0014', patient: 'Jennifer Lee', payer: 'BlueCross', amount: 1200, denialCode: 'CO-18', denialReason: 'Duplicate claim/service', date: '2024-03-07', deadline: '2024-04-07', status: 'Resubmitted', appStatus: 'Won' },
-      { id: 'CLM-2024-0015', patient: 'David Brown', payer: 'Aetna', amount: 4100, denialCode: 'CO-45', denialReason: 'Charge exceeds fee schedule/maximum allowable', date: '2024-03-06', deadline: '2024-04-06', status: 'Appealing', appStatus: 'Submitted' },
-      { id: 'CLM-2024-0016', patient: 'Patricia White', payer: 'UnitedHealthcare', amount: 2800, denialCode: 'PR-2', denialReason: 'Coinsurance Amount', date: '2024-03-05', deadline: '2024-04-05', status: 'New', appStatus: 'Not Started' },
-      { id: 'CLM-2024-0017', patient: 'Christopher Hall', payer: 'BlueCross', amount: 5600, denialCode: 'CO-97', denialReason: 'The benefit for this service is included in the payment for another service', date: '2024-03-04', deadline: '2024-04-04', status: 'Appealing', appStatus: 'Submitted' },
-      { id: 'CLM-2024-0018', patient: 'Linda Davis', payer: 'Cigna', amount: 920, denialCode: 'PR-3', denialReason: 'Co-payment Amount', date: '2024-03-03', deadline: '2024-04-03', status: 'Won', appStatus: 'Approved' },
-      { id: 'CLM-2024-0019', patient: 'Mark Wilson', payer: 'Aetna', amount: 3300, denialCode: 'CO-16', denialReason: 'Claim/service lacks information needed for adjudication', date: '2024-02-28', deadline: '2024-03-30', status: 'Appealing', appStatus: 'Submitted' },
-      { id: 'CLM-2024-0020', patient: 'Susan Green', payer: 'BlueCross', amount: 1700, denialCode: 'CO-4', denialReason: 'The procedure code is inconsistent with the modifier used', date: '2024-02-26', deadline: '2024-03-28', status: 'Lost', appStatus: 'Denied' },
-      { id: 'CLM-2024-0021', patient: 'Daniel Taylor', payer: 'UnitedHealthcare', amount: 2450, denialCode: 'CO-18', denialReason: 'Duplicate claim/service', date: '2024-02-25', deadline: '2024-03-27', status: 'Resubmitted', appStatus: 'Won' },
-      { id: 'CLM-2024-0022', patient: 'Nancy Martin', payer: 'Cigna', amount: 1580, denialCode: 'PR-1', denialReason: 'Deductible Amount', date: '2024-02-23', deadline: '2024-03-25', status: 'New', appStatus: 'Not Started' },
-      { id: 'CLM-2024-0023', patient: 'Steven Lewis', payer: 'BlueCross', amount: 4200, denialCode: 'CO-29', denialReason: 'The time limit for filing has expired', date: '2024-02-20', deadline: '2024-03-22', status: 'Lost', appStatus: 'Denied' },
-      { id: 'CLM-2024-0024', patient: 'Barbara Clark', payer: 'Aetna', amount: 3100, denialCode: 'CO-45', denialReason: 'Charge exceeds fee schedule/maximum allowable', date: '2024-02-18', deadline: '2024-03-20', status: 'Appealing', appStatus: 'Submitted' },
-    ];
+    const data = await apiFetch('/denials', token);
+    return data.data || data || [];
   },
 
   getERA: async (token) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 300));
-    return [
-      { id: 'ERA-2024-001', payer: 'BlueCross', checkNo: 'CK-892341', date: '2024-03-15', amount: 45823.50, claimsCount: 34, status: 'Posted', received: '2024-03-15' },
-      { id: 'ERA-2024-002', payer: 'Aetna', checkNo: 'CK-892342', date: '2024-03-14', amount: 32156.75, claimsCount: 28, status: 'Pending', received: '2024-03-14' },
-      { id: 'ERA-2024-003', payer: 'UnitedHealthcare', checkNo: 'EFT-401892', date: '2024-03-13', amount: 67420.00, claimsCount: 45, status: 'Posted', received: '2024-03-13' },
-      { id: 'ERA-2024-004', payer: 'Cigna', checkNo: 'CK-892343', date: '2024-03-12', amount: 28934.25, claimsCount: 22, status: 'Exception', received: '2024-03-12' },
-      { id: 'ERA-2024-005', payer: 'BlueCross', checkNo: 'CK-892344', date: '2024-03-11', amount: 41567.50, claimsCount: 31, status: 'Pending', received: '2024-03-11' },
-      { id: 'ERA-2024-006', payer: 'Aetna', checkNo: 'CK-892345', date: '2024-03-10', amount: 35789.00, claimsCount: 26, status: 'Posted', received: '2024-03-10' },
-      { id: 'ERA-2024-007', payer: 'UnitedHealthcare', checkNo: 'EFT-401893', date: '2024-03-09', amount: 52300.75, claimsCount: 38, status: 'Posted', received: '2024-03-09' },
-      { id: 'ERA-2024-008', payer: 'Cigna', checkNo: 'CK-892346', date: '2024-03-08', amount: 24561.25, claimsCount: 18, status: 'Pending', received: '2024-03-08' },
-      { id: 'ERA-2024-009', payer: 'BlueCross', checkNo: 'CK-892347', date: '2024-03-07', amount: 38945.00, claimsCount: 29, status: 'Exception', received: '2024-03-07' },
-      { id: 'ERA-2024-010', payer: 'Aetna', checkNo: 'CK-892348', date: '2024-03-06', amount: 29876.50, claimsCount: 23, status: 'Posted', received: '2024-03-06' },
-    ];
+    const data = await apiFetch('/billing/era', token);
+    return data.data || data || [];
   },
 
   getAging: async (token) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 250));
-    return {
-      buckets: [
-        { range: '0-30 days', amount: 847200, claimCount: 42, color: 'green' },
-        { range: '31-60 days', amount: 423100, claimCount: 28, color: 'yellow' },
-        { range: '61-90 days', amount: 198700, claimCount: 15, color: 'orange' },
-        { range: '90+ days', amount: 87400, claimCount: 8, color: 'red' },
-      ],
-      byPayer: [
-        { payer: 'BlueCross', '0-30': 340000, '31-60': 180000, '61-90': 95000, '90+': 42000 },
-        { payer: 'Aetna', '0-30': 280000, '31-60': 120000, '61-90': 60000, '90+': 25000 },
-        { payer: 'UnitedHealthcare', '0-30': 150000, '31-60': 89000, '61-90': 28000, '90+': 15000 },
-        { payer: 'Cigna', '0-30': 77200, '31-60': 34100, '61-90': 15700, '90+': 5400 },
-      ],
-      queue: [
-        { claimId: 'CLM-2024-0082', patient: 'Old Claim 1', payer: 'Aetna', amount: 8900, age: 127, lastAction: 'First Submission', nextDue: '2024-03-17', priority: 95 },
-        { claimId: 'CLM-2024-0081', patient: 'Old Claim 2', payer: 'BlueCross', amount: 12300, age: 118, lastAction: 'Follow-up Sent', nextDue: '2024-03-18', priority: 92 },
-        { claimId: 'CLM-2024-0080', patient: 'Old Claim 3', payer: 'UnitedHealthcare', amount: 6500, age: 95, lastAction: 'Pending Response', nextDue: '2024-03-19', priority: 88 },
-        { claimId: 'CLM-2024-0079', patient: 'Old Claim 4', payer: 'Cigna', amount: 4200, age: 78, lastAction: 'Follow-up Sent', nextDue: '2024-03-20', priority: 82 },
-        { claimId: 'CLM-2024-0078', patient: 'Old Claim 5', payer: 'BlueCross', amount: 5600, age: 65, lastAction: 'First Submission', nextDue: '2024-03-21', priority: 75 },
-      ]
-    };
+    const data = await apiFetch('/billing/aging', token);
+    return data.data || data || {};
   },
 
   getScrubbing: async (token) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 350));
-    return {
-      summary: { scrubbed: 47, clean: 43, errors: 4, warnings: 8 },
-      issues: [
-        { claimId: 'CLM-2024-0051', patient: 'Test Patient 1', type: 'Missing Modifier', severity: 'Error', description: 'Missing modifier 25 for E&M with procedure on same date', fix: 'Add modifier 25 to procedure code 99214' },
-        { claimId: 'CLM-2024-0052', patient: 'Test Patient 2', type: 'ICD-10 Mismatch', severity: 'Error', description: 'ICD-10 code Z00.00 does not support medical necessity for CPT 99215', fix: 'Change primary diagnosis to supported code (Z12.89 for screening)' },
-        { claimId: 'CLM-2024-0053', patient: 'Test Patient 3', type: 'Place of Service', severity: 'Warning', description: 'Place of service 11 (Office) inconsistent with facility charge indicator', fix: 'Verify service location and correct POS code' },
-        { claimId: 'CLM-2024-0054', patient: 'Test Patient 4', type: 'Medicare Eligibility', severity: 'Warning', description: 'Patient DOB makes them Medicare-eligible — verify primary payer', fix: 'Confirm patient eligibility and payer order' },
-        { claimId: 'CLM-2024-0055', patient: 'Test Patient 5', type: 'Timely Filing', severity: 'Warning', description: 'Timely filing deadline in 12 days — submit promptly', fix: 'Submit claim immediately' },
-        { claimId: 'CLM-2024-0056', patient: 'Test Patient 6', type: 'Bundling', severity: 'Error', description: 'CPT 99214 with 99213 on same date — possible duplicate', fix: 'Remove duplicate code or add modifier 59 for distinct service' },
-        { claimId: 'CLM-2024-0057', patient: 'Test Patient 7', type: 'Modifier Required', severity: 'Warning', description: 'Modifier 59 may be required for distinct procedural service', fix: 'Add modifier 59 if services are distinct procedures' },
-        { claimId: 'CLM-2024-0058', patient: 'Test Patient 8', type: 'Fee Schedule', severity: 'Warning', description: 'Charge exceeds contracted rate by 15%', fix: 'Verify fee schedule or appeal as exceptional case' },
-      ]
-    };
+    const data = await apiFetch('/scrubbing', token);
+    return data.data || data || {};
   },
 
   scoreClaim: async (token, claimId) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 400));
-    return {
-      claimId,
-      decision: Math.random() > 0.3 ? 'APPROVE_SUBMIT' : 'REVIEW_RECOMMENDED',
-      rationale: 'Rules-based evaluation from server',
-      score: Math.floor(Math.random() * 30) + 70,
-      confidence: 0.92,
-      integrity: { tampering: false, overrides: 0 },
-    };
+    const data = await apiFetch(`/claims/${claimId}/score`, token);
+    return data.score || data;
   },
 
   lookupNPI: async (token, npi) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 300));
-    if (!/^\d{10}$/.test(npi)) throw new Error('Invalid NPI format');
-    return {
-      npi,
-      verified: true,
-      source: 'NPI_REGISTRY_CMS',
-      provider: { name: 'Dr. Example Provider', taxonomy: 'Internal Medicine' },
-    };
+    const data = await apiFetch(`/integrations/npi/${npi}`, token);
+    return data;
   },
 
   getEligibility: async (token, memberId, planId) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 350));
-    return {
-      memberId,
-      eligible: true,
-      planName: 'BlueCross Preferred Plus',
-      deductible: { individual: 1500, met: 750 },
-      copay: { office: 30, emergency: 250 },
-      coinsurance: 20,
-      outOfPocket: { individual: 5000, family: 10000 },
-    };
+    const data = await apiFetch('/eligibility/check', token, {
+      method: 'POST',
+      body: JSON.stringify({ memberId, planId }),
+    });
+    return data;
   },
 
   submitMessage: async (token, message) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 200));
-    return { id: Math.random().toString(36).substr(2, 9), success: true, timestamp: new Date().toISOString() };
+    const data = await apiFetch('/messaging', token, {
+      method: 'POST',
+      body: JSON.stringify(message),
+    });
+    return data;
   },
 
   getAnalytics: async (token) => {
-    if (!token) throw new Error('Unauthorized');
-    await new Promise(r => setTimeout(r, 400));
-    return {
-      claimsThisMonth: 127,
-      approvalRate: 89,
-      avgDaysProcessing: 14,
-      denialRate: 8.2,
-      denialTrends: [
-        { month: 'Jan', denials: 12, approvals: 108 },
-        { month: 'Feb', denials: 9, approvals: 115 },
-        { month: 'Mar', denials: 10, approvals: 120 },
-      ],
-    };
+    const data = await apiFetch('/billing/analytics', token);
+    return data.data || data;
   },
 
   getLegalDocument: async (key) => {
-    await new Promise(r => setTimeout(r, 200));
-    const docs = {
-      terms: 'Terms of Service: These are the legal terms governing use of Noesis.io Health. [Sample Data] You agree to use this platform only for legitimate healthcare operations in compliance with HIPAA, state law, and payer agreements.',
-      privacy: 'Privacy Policy: Noesis.io Health implements HIPAA-aligned security measures to protect Protected Health Information (PHI). [Sample Data] Data is transmitted over TLS. In-memory storage is used; no persistent encryption at rest is currently implemented.',
-      disclaimer: 'Medical Claims Processing Disclaimer: [Sample Data] Noesis.io Health processes claims based on payer rules and fee schedules but does not guarantee approval. Medical necessity determinations remain with the payer.',
-      billing: 'Billing Terms: [Sample Data] Standard billing applies. Subscription includes claims management, eligibility checks, and analytics.',
-    };
-    return docs[key] || 'Document not found';
+    const data = await apiFetch(`/legal/${key}`, null);
+    return data.content || data;
   },
 };
 

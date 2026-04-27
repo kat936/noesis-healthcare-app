@@ -6,88 +6,80 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Parse allowed origins from environment variable
-const getAllowedOrigins = () => {
-  const originsEnv = process.env.ALLOWED_ORIGINS;
-  if (!originsEnv) {
-    return ['http://localhost:3000'];
-  }
-  return originsEnv.split(',').map(origin => origin.trim());
-};
-
-const allowedOrigins = getAllowedOrigins();
-
-// Middleware
+// ── Security headers ────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
-    }
+      frameSrc: ["'none'"],
+    },
   },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  },
-  frameguard: {
-    action: 'deny'
-  },
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  frameguard: { action: 'deny' },
   noSniff: true,
-  referrerPolicy: {
-    policy: 'no-referrer'
-  },
+  referrerPolicy: { policy: 'no-referrer' },
   xssFilter: true,
-  hidePoweredBy: true
+  hidePoweredBy: true,
 }));
 
+// ── CORS ─────────────────────────────────────────────────────────────────────
+const getAllowedOrigins = () => {
+  const raw = process.env.ALLOWED_ORIGINS;
+  if (!raw) return ['http://localhost:3000'];
+  return raw.split(',').map((o) => o.trim());
+};
+
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed'));
-    }
+  origin: (origin, callback) => {
+    const allowed = getAllowedOrigins();
+    if (!origin || allowed.includes(origin)) return callback(null, true);
+    callback(new Error('CORS not allowed'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
-// Audit Logging Middleware (after auth for request body parsing)
+// ── Audit logging (HIPAA §164.312(b)) ────────────────────────────────────────
 const { auditLogMiddleware } = require('./middleware/auditLog');
+app.use(auditLogMiddleware);
 
-// Startup Banner
+// ── HIPAA session timeout (§164.312(a)(2)(iii)) ───────────────────────────────
+const { sessionTimeoutMiddleware } = require('./middleware/sessionTimeout');
+app.use(sessionTimeoutMiddleware);
+
+// ── Startup banner ────────────────────────────────────────────────────────────
 console.log('\n' + '='.repeat(70));
 console.log('Noesis.io Health API Server v1.0');
 console.log('© 2026 Athena Core Technologies. All rights reserved.');
-console.log('Powered by Athena Core Technologies');
 console.log('='.repeat(70) + '\n');
 
-// Health Check Endpoint
+// ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
+  const db = require('./db');
+  const redis = require('./utils/redis');
   res.json({
     status: 'healthy',
     service: 'Noesis.io Health API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    db: db.isConnected() ? 'connected' : 'in-memory',
+    redis: redis.isAvailable() ? 'connected' : 'in-memory',
   });
 });
 
-// Mount audit logging AFTER auth middleware processes but BEFORE routes
-app.use(auditLogMiddleware);
-
-// Routes
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', require('./routes/auth'));
 app.use('/api/v1/claims', require('./routes/claims'));
 app.use('/api/v1/authorizations', require('./routes/authorizations'));
@@ -107,43 +99,45 @@ app.use('/api/v1/scrubbing', require('./routes/scrubbing'));
 app.use('/api/v1/audit', require('./routes/audit'));
 app.use('/api/v1/hipaa', require('./routes/hipaa'));
 
-// 404 Handler
+// ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not found',
-    code: 'ROUTE_NOT_FOUND',
-    path: req.path,
-    method: req.method
+  res.status(404).json({ error: 'Not found', code: 'ROUTE_NOT_FOUND', path: req.path, method: req.method });
+});
+
+// ── Global error handler ──────────────────────────────────────────────────────
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    code: err.code || 'INTERNAL_ERROR',
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 
-// Global Error Handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  const isDevelopment = process.env.NODE_ENV === 'development';
+// ── Server start + infra init ─────────────────────────────────────────────────
+async function start() {
+  // Init Redis (non-blocking)
+  const redis = require('./utils/redis');
+  await redis.initRedis().catch(() => {});
 
-  const response = {
-    error: err.message || 'Internal server error',
-    code: err.code || 'INTERNAL_ERROR',
-    timestamp: new Date().toISOString()
-  };
+  // Init DB schema (non-blocking)
+  const db = require('./db');
+  await db.initSchema().catch((err) => {
+    console.warn('⚠ Schema init skipped:', err.message);
+  });
 
-  // Only expose stack traces in development
-  if (isDevelopment) {
-    response.stack = err.stack;
-  }
+  app.listen(PORT, () => {
+    const stripe = require('./services/stripe');
+    console.log(`✓ Server listening on port ${PORT}`);
+    console.log(`✓ Health check: http://localhost:${PORT}/health`);
+    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`✓ JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'CHANGE IN PRODUCTION'}`);
+    console.log(`✓ Stripe: ${stripe.getStatus().configured ? 'Configured' : 'Test mode'}`);
+    console.log('');
+  });
+}
 
-  res.status(err.status || 500).json(response);
-});
-
-// Start Server
-app.listen(PORT, () => {
-  console.log(`✓ Server listening on port ${PORT}`);
-  console.log(`✓ Health check: http://localhost:${PORT}/health`);
-  console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✓ JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'CHANGE IN PRODUCTION'}`);
-  console.log(`✓ Stripe: ${require('./services/stripe').getStatus().configured ? 'Configured' : 'Test mode'}`);
-  console.log('');
-});
+start();
 
 module.exports = app;
