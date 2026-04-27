@@ -1,0 +1,45 @@
+<svg viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Black background -->
+  <rect width="500" height="600" fill="#000000"/>
+
+  <!-- Define group for centered geometric mark -->
+  <g transform="translate(250, 180)">
+    <!-- Outer circle -->
+    <circle cx="0" cy="0" r="120" fill="none" stroke="#C5A55A" stroke-width="2.5"/>
+
+    <!-- Second ring -->
+    <circle cx="0" cy="0" r="100" fill="none" stroke="#C5A55A" stroke-width="2.5"/>
+
+    <!-- Third ring -->
+    <circle cx="0" cy="0" r="80" fill="none" stroke="#C5A55A" stroke-width="2.5"/>
+
+    <!-- Equilateral triangle (pointing up, inscribed in inner circle) -->
+    <polygon points="0,-92 80,46 -80,46" fill="none" stroke="#C5A55A" stroke-width="2.5"/>
+
+    <!-- Compass/Star pattern - diamond shape with radiating lines -->
+    <!-- North line -->
+    <line x1="0" y1="-50" x2="0" y2="-70" stroke="#C5A55A" stroke-width="2.5"/>
+    <!-- South line -->
+    <line x1="0" y1="50" x2="0" y2="70" stroke="#C5A55A" stroke-width="2.5"/>
+    <!-- East line -->
+    <line x1="50" y1="0" x2="70" y2="0" stroke="#C5A55A" stroke-width="2.5"/>
+    <!-- West line -->
+    <line x1="-50" y1="0" x2="-70" y2="0" stroke="#C5A55A" stroke-width="2.5"/>
+
+    <!-- Diagonal lines for star effect -->
+    <!-- Northeast -->
+    <line x1="35.35" y1="-35.35" x2="49.5" y2="-49.5" stroke="#C5A55A" stroke-width="2.5"/>
+    <!-- Southeast -->
+    <line x1="35.35" y1="35.35" x2="49.5" y2="49.5" stroke="#C5A55A" stroke-width="2.5"/>
+    <!-- Southwest -->
+    <line x1="-35.35" y1="35.35" x2="-49.5" y2="49.5" stroke="#C5A55A" stroke-width="2.5"/>
+    <!-- Northwest -->
+    <line x1="-35.35" y1="-35.35" x2="-49.5" y2="-49.5" stroke="#C5A55A" stroke-width="2.5"/>
+
+    <!-- Central circle/dot -->
+    <circle cx="0" cy="0" r="6" fill="#C5A55A"/>
+  </g>
+
+  <!-- Text: NOESIS.IO -->
+  <text x="250" y="510" font-family="Georgia, serif" font-size="48" font-weight="bold" fill="#C5A55A" text-anchor="middle" letter-spacing="3">NOESIS.IO</text>
+</svg>
