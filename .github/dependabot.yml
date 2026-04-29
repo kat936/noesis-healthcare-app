@@ -1,0 +1,46 @@
+# Noesis.io Health — Dependabot policy
+# © 2026 Athena Core Technologies, Inc.
+#
+# Existing open Dependabot PRs at the time of this CI introduction:
+#   - server/multer 2.1.1
+#   - server/uuid   14.0.0
+# Both are valid security/version updates and should be reviewed and
+# merged together with this CI PR or shortly after.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies, frontend]
+    groups:
+      react:
+        patterns: [react, react-dom, '@vitejs/*', vite]
+      tooling:
+        patterns: [eslint*, postcss, autoprefixer, tailwindcss]
+      capacitor:
+        patterns: ['@capacitor/*']
+
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies, server]
+    groups:
+      security:
+        patterns: [helmet, cors, jsonwebtoken, bcryptjs, zod, multer]
+      data:
+        patterns: [pg, ioredis, decimal.js]
+      integrations:
+        patterns: [stripe, axios, fast-xml-parser]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]

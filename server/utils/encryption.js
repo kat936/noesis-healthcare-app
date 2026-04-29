@@ -137,19 +137,60 @@ function decryptFields(obj, fields) {
 
 /**
  * PHI fields that must be encrypted in the claims table.
+ *
+ * Expansion follows HIPAA Safe Harbor 18-identifier list — any field that
+ * could individually or in combination identify a patient is encrypted at
+ * rest. The bcrypt-hashed fields (e.g. password hashes) are out of scope
+ * because they are already one-way and not PHI.
  */
-const CLAIM_PHI_FIELDS = ['patient_name', 'patient_dob'];
+const CLAIM_PHI_FIELDS = [
+  'patient_name',
+  'patient_dob',
+  'patient_ssn',
+  'patient_mrn',
+  'patient_address',
+  'patient_phone',
+  'patient_email',
+  'patient_zip',
+  'subscriber_id',
+  'member_id',
+  'policy_number',
+];
 
 /**
- * PHI fields that must be encrypted in the users table.
+ * PHI fields that must be encrypted in the users (provider) table.
+ * The user's login email is not PHI on its own (it identifies the
+ * workforce member, not a patient) and remains plaintext for indexing.
  */
-const USER_PHI_FIELDS = [];
+const USER_PHI_FIELDS = ['phone', 'mobile'];
+
+/**
+ * Audit-log support: emit a key fingerprint alongside encrypted values so
+ * that during key rotation we know which key version produced a given
+ * ciphertext. The fingerprint is the first 8 hex chars of SHA-256(key) —
+ * deterministic but not key-recovering.
+ */
+function getKeyFingerprint() {
+  const key = getKey();
+  const digest = crypto.createHash('sha256').update(key).digest('hex');
+  return digest.slice(0, 8);
+}
+
+/**
+ * Generate a new 256-bit hex key suitable for PHI_ENCRYPTION_KEY.
+ * Operators run this offline to provision / rotate keys.
+ */
+function generateKey() {
+  return crypto.randomBytes(KEY_LENGTH).toString('hex');
+}
 
 module.exports = {
   encryptPHI,
   decryptPHI,
   encryptFields,
   decryptFields,
+  getKeyFingerprint,
+  generateKey,
   CLAIM_PHI_FIELDS,
   USER_PHI_FIELDS,
 };

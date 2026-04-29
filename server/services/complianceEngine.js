@@ -3,9 +3,20 @@
  * © 2026 Athena Core Technologies
  *
  * Server-side HIPAA compliance scoring
- * Evaluates organization compliance posture
+ * Evaluates organization compliance posture (decision-support / informational)
  * NOT exposed to frontend - calculation logic is proprietary
+ *
+ * NOESIS standards:
+ *   - Deterministic engine. Same inputs at the same RULE_VERSION produce
+ *     the same score, with a canonical auditTrail block.
+ *   - Analytical / informational only — this engine does not represent
+ *     a HIPAA certification. Vanta or another qualified auditor renders
+ *     the actual attestation.
  */
+
+const audit = require('../utils/audit');
+
+const RULE_VERSION = 'compliance@1.1.0';
 
 class ComplianceEngine {
   constructor() {
@@ -47,6 +58,27 @@ class ComplianceEngine {
 
     const finalScore = Math.round(totalScore * 100);
 
+    const auditTrail = audit.buildAuditTrail({
+      engineId: 'compliance',
+      ruleVersion: RULE_VERSION,
+      // org-level posture inputs are not PHI but may include identifying
+      // details (org id, contact email) — scrub conservatively before
+      // fingerprinting.
+      inputs: audit.scrubPhi({
+        weights: this.weights,
+        signals: {
+          mfaEnforced:                 !!orgData?.mfaEnforced,
+          rbacConfigured:              !!orgData?.rbacConfigured,
+          encryptionAtRest:            !!orgData?.encryptionAtRest,
+          encryptionInTransit:         !!orgData?.encryptionInTransit,
+          auditLogsEnabled:            !!orgData?.auditLogsEnabled,
+          trainingCompletionPct:       orgData?.trainingCompletionPct ?? null,
+          policyAcknowledgmentPct:     orgData?.policyAcknowledgmentPct ?? null,
+        },
+      }),
+      output: { overallScore: finalScore },
+    });
+
     return {
       overallScore: finalScore,
       breakdown,
@@ -57,7 +89,16 @@ class ComplianceEngine {
             ? 'NEEDS_ATTENTION'
             : 'NON_COMPLIANT',
       recommendations: this.generateRecommendations(scores),
-      timestamp: new Date().toISOString(),
+      // NOESIS canonical audit-trail block.
+      auditTrail,
+      timestamp: auditTrail.computedAt,
+      engineVersion: RULE_VERSION,
+      decisionScope: 'analytical',
+      autonomy:      'none',
+      // Notice: this score is an internal posture indicator, not a
+      // HIPAA / Vanta attestation. Certification authority resides with
+      // the qualified third-party auditor (Vanta).
+      attestation: 'self-assessment-only',
       nextReviewDate: this.getNextReviewDate(finalScore)
     };
   }

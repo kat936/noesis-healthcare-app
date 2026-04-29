@@ -62,7 +62,7 @@ The Strategy Engine is **NOT**:
 
 ### Strategy Engine Limitations
 
-**Scores are informational and advisory only.**
+**Scores are analytical / informational decision-support only.**
 
 - Scores do NOT mean a payer will approve or deny a claim
 - Scores do NOT represent actual claim adjudication

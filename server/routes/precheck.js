@@ -22,6 +22,13 @@ const express  = require('express');
 const router   = express.Router();
 const db       = require('../db');
 const { authenticate } = require('../middleware/auth');
+const audit    = require('../utils/audit');
+const money    = require('../utils/money');
+
+// NOESIS rule version for the precheck engine. Bump on any rule, weight,
+// fee-schedule, or threshold change so historical decisions remain
+// reproducible and auditable.
+const PRECHECK_RULE_VERSION = 'precheck@1.1.0';
 
 // ── In-memory fallback store (dev / no-DB mode) ────────────────────────────
 const memStore = new Map();
@@ -413,7 +420,10 @@ function computeEstimatedReimbursement(cptCodes, payerKey) {
   const knownCodes = cptCodes.filter(c => FEE_SCHEDULE[c]);
   if (knownCodes.length === 0) return null;
 
-  const medicareTotal = knownCodes.reduce((sum, c) => sum + FEE_SCHEDULE[c].allowed, 0);
+  // Use Decimal-backed sum to avoid IEEE-754 drift across many CPT codes.
+  // The fee schedule is in dollars-with-cents, and commercial multipliers
+  // amplify any binary-float rounding into visible patient-bill errors.
+  const medicareTotalD = money.sum(knownCodes.map(c => FEE_SCHEDULE[c].allowed));
 
   // Commercial payer multipliers (representative - actual rates per contract)
   const multipliers = {
@@ -429,13 +439,14 @@ function computeEstimatedReimbursement(cptCodes, payerKey) {
   };
 
   const multiplier = multipliers[payerKey] || multipliers.default;
-  const estimated = Math.round(medicareTotal * multiplier * 100) / 100;
+  const estimatedD = money.mul(medicareTotalD, multiplier);
 
   return {
-    medicare_floor:    Math.round(medicareTotal * 100) / 100,
-    estimated_allowed: estimated,
+    medicare_floor:     money.toCents(medicareTotalD),
+    estimated_allowed:  money.toCents(estimatedD),
     multiplier_applied: multiplier,
     currency: 'USD',
+    // [Demo data] CMS national rates + representative payer multipliers.
     note: 'Estimated based on CMS national rates and representative commercial payer multipliers. Actual reimbursement is determined by your specific contracted rates.',
   };
 }
@@ -565,10 +576,37 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
+    // NOESIS canonical audit-trail block. Inputs are already non-PHI
+    // (codes, payer, flags) but we run scrubPhi as a defensive layer.
+    const auditTrail = audit.buildAuditTrail({
+      engineId: 'precheck',
+      ruleVersion: PRECHECK_RULE_VERSION,
+      inputs: audit.scrubPhi({
+        cptCodes:           sanitizedCptCodes,
+        icd10Codes:         sanitizedIcd10,
+        modifiers:          sanitizedModifiers,
+        payerName:          String(payerName).trim(),
+        eligibilityVerified: Boolean(eligibilityVerified),
+        dateOfService:      dateOfService || null,
+        providerSpecialty:  providerSpecialty || '',
+      }),
+      output: {
+        score:     result.score,
+        riskLevel: result.riskLevel,
+        flagCount: result.flags?.length || 0,
+      },
+    });
+
     return res.status(200).json({
       id:         savedId,
       ...result,
-      analyzedAt: new Date().toISOString(),
+      // Canonical NOESIS audit-trail (additive — does not break legacy callers).
+      auditTrail,
+      // Notice: this engine is decision-support / informational. It does not
+      // adjudicate claims and does not replace payer determination.
+      decisionScope: 'analytical',
+      autonomy:      'none',
+      analyzedAt:    auditTrail.computedAt,
     });
 
   } catch (err) {

@@ -1,6 +1,38 @@
 node_modules/
 .env
+.env.local
+.env.*.local
 *.log
 dist/
 build/
 .DS_Store
+
+# Vite / framework
+.vite/
+*.local
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+
+# Capacitor / iOS (generated artifacts only — keep config + source)
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/output/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Server
+server/node_modules/
+server/.env
+server/coverage/

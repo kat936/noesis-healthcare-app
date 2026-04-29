@@ -189,7 +189,7 @@ Stripe integration is configured but is currently in test/demo mode only. No rea
 
 ### 7.3 Strategy Engine Limitations
 
-The Strategy Engine is a **deterministic rules-based system**, not an artificial intelligence or machine learning system. Its claims scoring is informational and advisory only:
+The Strategy Engine is a **deterministic rules-based system**, not an artificial intelligence or machine learning system. Its claims scoring is analytical / informational decision-support only:
 
 - Scores do NOT guarantee claims will be approved or denied by payers
 - Scores do NOT represent actual claim adjudication

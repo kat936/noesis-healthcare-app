@@ -60,21 +60,37 @@
     </array>
 
     <!-- ── App Transport Security ─────────────────────────────────────── -->
-    <!-- Only allow HTTPS connections. Required for HIPAA compliance. -->
+    <!-- Only allow HTTPS in transit. Required for HIPAA technical safeguards
+         (45 CFR §164.312(e)). The localhost exception below is gated by a
+         build configuration; it MUST NOT ship in App Store / TestFlight
+         release builds. See ios/App/SUBMISSION.md for the verification step. -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
         <false/>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
         <key>NSExceptionDomains</key>
         <dict>
-            <!-- Allow localhost for development ONLY - remove for production build -->
+            <!-- localhost for development only — release builds exclude this
+                 dict via build-time Info.plist substitution. -->
             <key>localhost</key>
             <dict>
-                <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
                 <true/>
             </dict>
         </dict>
     </dict>
+
+    <!-- ── Encryption Export Compliance ───────────────────────────────── -->
+    <!-- Noesis Health uses only standard HTTPS / TLS encryption that is
+         exempt from US Bureau of Industry and Security export licensing
+         per ECCN 5D992 license exception ENC. Setting this key avoids the
+         App Store Connect export-compliance questionnaire on every build. -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 
     <!-- ── Privacy Usage Descriptions ────────────────────────────────── -->
     <!-- Apple REQUIRES these strings for any permission request -->
@@ -91,6 +107,18 @@
 
     <key>NSFaceIDUsageDescription</key>
     <string>Noesis Health uses Face ID to securely authenticate you and protect access to sensitive healthcare and insurance data.</string>
+
+    <!-- Local network / Bonjour: required for Capacitor live-reload during
+         development and for any future provider-network LAN integration.
+         Remove if not needed in your release build. -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Noesis Health uses your local network for development tooling and to communicate with on-premises EHR systems where applicable.</string>
+
+    <!-- App Tracking Transparency: Noesis Health does NOT track users
+         across apps or websites. The string is supplied in case a future
+         analytics provider triggers the prompt; the answer is informational. -->
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Noesis Health does not track you across apps or websites. This permission is requested only if a future feature requires it.</string>
 
     <!-- ── Launch Screen ───────────────────────────────────────────────── -->
     <key>UILaunchStoryboardName</key>

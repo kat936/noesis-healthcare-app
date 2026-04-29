@@ -1,0 +1,42 @@
+{
+  "name": "noesis-healthcare-app",
+  "version": "1.0.0",
+  "description": "Noesis.io Health — provider-facing healthcare claims & RCM platform. © 2026 Athena Core Technologies.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .js,.jsx",
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "audit:security": "npm audit --omit=dev --audit-level=moderate",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "server": "cd server && npm run dev",
+    "server:start": "cd server && npm start"
+  },
+  "dependencies": {
+    "decimal.js": "^10.4.3",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.13.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "vite": "^5.4.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

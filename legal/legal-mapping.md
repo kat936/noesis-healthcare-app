@@ -26,7 +26,7 @@ This directory contains the following legal documents:
 | Feature | Legal Section | Document | Reason |
 |---------|---------------|----------|--------|
 | **Account Registration & Login** | Account Terms, Consent | ToS, Consent | Users must accept Terms and acknowledge disclaimers before using platform |
-| **Claims Management** | Claims Processing Limitations, Strategy Engine Disclaimer, Healthcare Disclaimers | ToS, Disclaimer, Consent | Claims scoring is advisory only; not actual adjudication; requires user acknowledgment |
+| **Claims Management** | Claims Processing Limitations, Strategy Engine Disclaimer, Healthcare Disclaimers | ToS, Disclaimer, Consent | Claims scoring is analytical / informational decision-support only; not actual adjudication; requires user acknowledgment |
 | **Prior Authorization Workflows** | Service Description, Healthcare Disclaimers | ToS, Disclaimer | Authorization tracking is administrative; not clinical decision-making |
 | **Eligibility Verification** | Service Description, Third-Party APIs, Disclaimer | ToS, Privacy, Disclaimer | Mock payer data; must disclose this is not real payer API; data not persistent |
 | **Provider-Payer Messaging** | Data Collection, User Responsibility | Privacy, ToS | Messages are not encrypted; not HIPAA-compliant without BAA |
@@ -85,7 +85,7 @@ This directory contains the following legal documents:
 - ✓ Healthcare Disclaimer (on first login)
 
 **Key Warnings:**
-- Strategy Engine scoring is advisory only
+- Strategy Engine scoring is analytical / informational decision-support only
 - Scores do NOT guarantee claim approval/denial
 - Rules-based system, not AI
 - Not actual claims adjudication

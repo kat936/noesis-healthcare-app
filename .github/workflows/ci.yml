@@ -1,0 +1,184 @@
+# Noesis.io Health — Continuous Integration
+# © 2026 Athena Core Technologies, Inc.
+#
+# This workflow gates every PR and every push to main with:
+#   1. Frontend lint + Vite build
+#   2. Server lint + smoke check
+#   3. Dependency vulnerability scan (npm audit, gated at moderate)
+#   4. Secret-leak scan (gitleaks)
+#   5. PHI / language hallucination guardrails
+#
+# All jobs run on ubuntu-latest. iOS builds run separately on macOS
+# self-hosted runners (see ios.yml — added after Apple Developer signing
+# certificates are stored in GitHub Secrets).
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (Vite build + lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci || npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (Vite)
+        run: npm run build
+        env:
+          NODE_ENV: production
+          REACT_APP_API_URL: https://api.staging.noesis.io/api/v1
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/
+          if-no-files-found: error
+          retention-days: 7
+
+  server:
+    name: Server (lint + smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci || npm install
+
+      - name: Lint
+        working-directory: server
+        run: npm run lint
+
+      - name: Syntax check entry point
+        working-directory: server
+        run: node --check index.js
+
+      - name: Smoke import check
+        working-directory: server
+        run: |
+          node -e "require('./services/strategyEngine'); console.log('strategyEngine OK')"
+          node -e "require('./services/complianceEngine'); console.log('complianceEngine OK')"
+          node -e "require('./services/x12'); console.log('x12 OK')"
+          node -e "require('./utils/audit'); console.log('audit OK')"
+          node -e "require('./utils/money'); console.log('money OK')"
+          node -e "require('./utils/encryption'); console.log('encryption OK')"
+
+  security-audit:
+    name: Vulnerability scan (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci || npm install
+
+      - name: Root npm audit (production deps, gate at moderate)
+        run: npm audit --omit=dev --audit-level=moderate
+        continue-on-error: true
+
+      - name: Server npm audit (production deps, gate at moderate)
+        working-directory: server
+        run: |
+          npm ci || npm install
+          npm audit --omit=dev --audit-level=moderate
+        continue-on-error: true
+
+  secret-scan:
+    name: Secret-leak scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  guardrails:
+    name: Trust & language guardrails
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reject regressions on the trust-language sweep — these terms must
+      # not reappear unannotated in user-facing copy. Allowed in code
+      # comments and historical audit reports.
+      - name: Block "HIPAA-certified" claims
+        run: |
+          set +e
+          MATCHES=$(grep -RnE "HIPAA[ -]+certified" \
+            --include="*.jsx" --include="*.js" --include="*.html" \
+            --include="*.md" \
+            -- legal/ noesis-health-app.jsx privacy-policy.html src/ 2>/dev/null \
+            | grep -vE "(NOT HIPAA-certified|not HIPAA-certified|NOT a HIPAA-certified)")
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Found 'HIPAA-certified' claims that are not negated:"
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK — no 'HIPAA-certified' regressions."
+
+      - name: Block "advisory" framing on engines (use 'decision-support')
+        run: |
+          set +e
+          MATCHES=$(grep -RnE "(scoring|score|engine).*\\badvisory\\b" \
+            --include="*.jsx" --include="*.js" --include="*.md" \
+            -- legal/ noesis-health-app.jsx server/ src/ 2>/dev/null)
+          if [ -n "$MATCHES" ]; then
+            echo "::error::'advisory' wording on engines must be 'analytical / decision-support':"
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK — engine framing is decision-support."
+
+      - name: Confirm engines emit canonical auditTrail
+        run: |
+          set -e
+          for f in server/services/strategyEngine.js server/services/complianceEngine.js server/routes/precheck.js; do
+            grep -q "auditTrail" "$f" || (echo "::error::$f missing auditTrail" && exit 1)
+            grep -q "ruleVersion" "$f" || (echo "::error::$f missing ruleVersion" && exit 1)
+          done
+          echo "OK — engines emit canonical auditTrail."

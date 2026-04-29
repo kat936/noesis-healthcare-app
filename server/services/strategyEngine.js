@@ -6,7 +6,23 @@
  * This engine scores claims against medical coding rules, bundling rules,
  * medical necessity, and payer contracts. Output informs decisions on
  * whether to submit, review, or hold for corrections.
+ *
+ * NOESIS standards:
+ *   - Deterministic: same inputs + same RULE_VERSION → same output (modulo
+ *     wall-clock fields).
+ *   - Audit-traceable: every score includes a canonical auditTrail block
+ *     with engineId / ruleVersion / computedAt / inputsFingerprint that
+ *     a HIPAA / Vanta auditor can replay.
+ *   - Decision-support / informational only — never advisory, never
+ *     autonomous adjudication. The user, not the engine, files the claim.
  */
+
+const audit = require('../utils/audit');
+
+// Bump RULE_VERSION whenever rule weights, thresholds, or rule logic change.
+// The version travels with every output so historical decisions remain
+// reproducible against the exact rule pack that scored them.
+const RULE_VERSION = 'strategy@1.1.0';
 
 class StrategyEngine {
   constructor() {
@@ -89,6 +105,25 @@ class StrategyEngine {
     const confidence = this.calculateConfidence(results);
     const decision = this.makeDecision(totalScore, confidence);
 
+    // Build the canonical NOESIS audit trail. We fingerprint a PHI-scrubbed
+    // copy of the inputs so the digest is stable but doesn't leak identifiers
+    // into log streams.
+    const auditTrail = audit.buildAuditTrail({
+      engineId: 'strategy',
+      ruleVersion: RULE_VERSION,
+      inputs: audit.scrubPhi({
+        claim: { id: claim.id, cptCode: claim.cptCode, icd10Code: claim.icd10Code,
+                 urgency: claim.urgency, modifiers: claim.modifiers, serviceDate: claim.serviceDate },
+        rulePack: packName,
+        existingClaimsCount: existingClaims.length,
+      }),
+      output: {
+        decision: decision.action,
+        score: Math.round(totalScore * 100) / 100,
+        confidence,
+      },
+    });
+
     return {
       claimId: claim.id,
       rulePack: packName,
@@ -100,8 +135,14 @@ class StrategyEngine {
       integrity: this.calculateIntegrity(results),
       ruleResults: results,
       recommendations: this.generateRecommendations(results),
-      timestamp: new Date().toISOString(),
-      engineVersion: '1.0.0'
+      // NOESIS canonical audit-trail block (additive — preserves legacy
+      // `timestamp` and `engineVersion` for backward compatibility).
+      auditTrail,
+      timestamp: auditTrail.computedAt,
+      engineVersion: RULE_VERSION,
+      // Notice to consumers: this engine is decision-support, not advisory.
+      decisionScope: 'analytical',
+      autonomy:      'none',
     };
   }
 

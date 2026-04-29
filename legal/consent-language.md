@@ -59,7 +59,7 @@ This Service is NOT:
 
 The Strategy Engine (claims scoring) is:
 • Rules-based, not artificial intelligence
-• Informational and advisory only
+• Analytical / informational decision-support only
 • NOT a guarantee of claim outcomes
 • NOT a replacement for professional claims management
 
@@ -94,7 +94,7 @@ I acknowledge and understand these limitations:
 Before you submit a claim, please acknowledge:
 
 □ I confirm that all information in this claim is accurate and complete
-□ I understand the Strategy Engine score is advisory and does NOT guarantee approval
+□ I understand the Strategy Engine score is decision-support only and does NOT guarantee approval
 □ I will independently verify all claim data before submission to a payer
 □ I acknowledge this platform does not have persistent storage
 
