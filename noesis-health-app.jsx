@@ -932,6 +932,7 @@ const LoginScreen = ({ onLogin, error }) => {
 
 // ============ DASHBOARD MODULE ============
 const DashboardModule = ({ token, userRole, isMasked }) => {
+  const toast = useToast();
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
@@ -944,6 +945,7 @@ const DashboardModule = ({ token, userRole, isMasked }) => {
         setAnalytics(analyticsData);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
@@ -1244,10 +1246,10 @@ const PreCheckModule = ({ token }) => {
                   <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4">
                     <div className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-2">Estimated Reimbursement</div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-teal-400">${result.estimatedReimbursement.estimated_allowed.toFixed(2)}</span>
+                      <span className="text-2xl font-bold text-teal-400">${(result.estimatedReimbursement.estimated_allowed ?? 0).toFixed(2)}</span>
                       <span className="text-xs text-slate-500">estimated allowed</span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">Medicare floor: ${result.estimatedReimbursement.medicare_floor.toFixed(2)} &nbsp;|&nbsp; Multiplier: {result.estimatedReimbursement.multiplier_applied}x</div>
+                    <div className="text-xs text-slate-500 mt-1">Medicare floor: ${(result.estimatedReimbursement.medicare_floor ?? 0).toFixed(2)} &nbsp;|&nbsp; Multiplier: {result.estimatedReimbursement.multiplier_applied}x</div>
                     <p className="text-xs text-slate-600 mt-2">{result.estimatedReimbursement.note}</p>
                   </div>
                 )}
@@ -1361,6 +1363,7 @@ const ClaimsModule = ({ token, userRole, isMasked }) => {
       setClaims(data);
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Failed to load claims');
     } finally {
       setLoading(false);
     }
@@ -1586,6 +1589,7 @@ const ClaimsModule = ({ token, userRole, isMasked }) => {
 
 // ============ DENIALS MODULE ============
 const DenialsModule = ({ token, userRole, isMasked }) => {
+  const toast = useToast();
   const [denials, setDenials] = useState([]);
   const [selectedDenial, setSelectedDenial] = useState(null);
   const [denialStats, setDenialStats] = useState(null);
@@ -1613,6 +1617,7 @@ const DenialsModule = ({ token, userRole, isMasked }) => {
         });
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load denials');
       } finally {
         setLoading(false);
       }
@@ -1833,6 +1838,7 @@ const PriorAuthModule = ({ token, plan }) => {
       setAuths(data);
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Failed to load prior authorizations');
     } finally {
       setLoading(false);
     }
@@ -1977,6 +1983,7 @@ const MessagingModule = ({ token }) => {
       }
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Failed to load conversations');
     } finally {
       setLoading(false);
     }
@@ -1989,6 +1996,7 @@ const MessagingModule = ({ token }) => {
       setMessages(data.messages || []);
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Failed to load messages');
     }
   };
 
@@ -2123,6 +2131,7 @@ const MessagingModule = ({ token }) => {
 
 // ============ A/R AGING MODULE ============
 const ARAgingModule = ({ token }) => {
+  const toast = useToast();
   const [aging, setAging] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -2133,6 +2142,7 @@ const ARAgingModule = ({ token }) => {
         setAging(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load A/R aging data');
       } finally {
         setLoading(false);
       }
@@ -2151,7 +2161,7 @@ const ARAgingModule = ({ token }) => {
         {(aging?.buckets || []).map((bucket, idx) => (
           <div key={idx} className={`border rounded-lg p-6 ${colors[idx]}`}>
             <p className="font-semibold mb-2">{bucket.range}</p>
-            <p className="text-2xl font-bold">${(bucket.amount / 1000).toFixed(0)}K</p>
+            <p className="text-2xl font-bold">${((bucket.amount || 0) / 1000).toFixed(0)}K</p>
             <p className="text-xs opacity-75">{bucket.claimCount} claims</p>
           </div>
         ))}
@@ -2188,6 +2198,7 @@ const ARAgingModule = ({ token }) => {
 
 // ============ CLAIMS SCRUBBING MODULE ============
 const ScrubModule = ({ token }) => {
+  const toast = useToast();
   const [scrubbing, setScrubbing] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -2198,6 +2209,7 @@ const ScrubModule = ({ token }) => {
         setScrubbing(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load scrubbing results');
       } finally {
         setLoading(false);
       }
@@ -2207,7 +2219,9 @@ const ScrubModule = ({ token }) => {
 
   if (loading) return <div className="text-center py-12 text-slate-400">Loading scrub results...</div>;
 
-  const cleanRate = scrubbing?.summary ? ((scrubbing.summary.clean / scrubbing.summary.scrubbed) * 100).toFixed(1) : 0;
+  const cleanRate = scrubbing?.summary && scrubbing.summary.scrubbed > 0
+    ? ((scrubbing.summary.clean / scrubbing.summary.scrubbed) * 100).toFixed(1)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -2232,6 +2246,7 @@ const ScrubModule = ({ token }) => {
 
 // ============ PAYMENTS/ERA MODULE ============
 const PaymentsModule = ({ token }) => {
+  const toast = useToast();
   const [era, setERA] = useState([]);
   const [selectedERA, setSelectedERA] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2243,6 +2258,7 @@ const PaymentsModule = ({ token }) => {
         setERA(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load payment data');
       } finally {
         setLoading(false);
       }
@@ -2269,7 +2285,7 @@ const PaymentsModule = ({ token }) => {
         <h3 className="text-lg font-semibold text-white mb-4">ERA/Remittance Queue</h3>
         <DataTable
           columns={['ERA ID', 'Payer', 'Check #', 'Amount', 'Claims', 'Status', 'Date Received']}
-          data={era.map(e => ({ 'ERA ID': e.id, Payer: e.payer, 'Check #': e.checkNo, Amount: '$' + e.amount.toLocaleString('en-US', { maximumFractionDigits: 2 }), Claims: e.claimsCount, Status: e.status, 'Date Received': e.received }))}
+          data={era.map(e => ({ 'ERA ID': e.id, Payer: e.payer, 'Check #': e.checkNo, Amount: '$' + (e.amount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }), Claims: e.claimsCount, Status: e.status, 'Date Received': e.received }))}
           onRowClick={(row) => { const e = era.find(x => x.id === row['ERA ID']); if (e) setSelectedERA(e); }}
         />
       </div>
@@ -2315,6 +2331,7 @@ const AdjudicationModule = ({ token, userRole }) => {
         setClaims(data.filter(c => c.status === 'In Review' || c.status === 'Submitted'));
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load adjudication queue');
       } finally {
         setLoading(false);
       }
@@ -2375,6 +2392,7 @@ const AdjudicationModule = ({ token, userRole }) => {
 
 // ============ FRAUD DETECTION MODULE (Insurance Only) ============
 const FraudDetectionModule = ({ token }) => {
+  const toast = useToast();
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(new Set());
@@ -2386,6 +2404,7 @@ const FraudDetectionModule = ({ token }) => {
         setQueue(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load fraud alerts');
       } finally {
         setLoading(false);
       }
@@ -2454,6 +2473,7 @@ const FraudDetectionModule = ({ token }) => {
 
 // ============ NETWORK MANAGEMENT MODULE (Insurance Only) ============
 const NetworkModule = ({ token }) => {
+  const toast = useToast();
   const [providers, setProviders] = useState([]);
   const [adequacy, setAdequacy] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2474,6 +2494,7 @@ const NetworkModule = ({ token }) => {
       setAdequacy(aData);
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Failed to load network providers');
     } finally {
       setLoading(false);
     }
@@ -2551,6 +2572,7 @@ const NetworkModule = ({ token }) => {
 
 // ============ ANALYTICS MODULE ============
 const AnalyticsModule = ({ token, plan, userRole }) => {
+  const toast = useToast();
   const [analytics, setAnalytics] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -2563,6 +2585,7 @@ const AnalyticsModule = ({ token, plan, userRole }) => {
         setAnalytics(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load analytics');
       } finally {
         setLoading(false);
       }
@@ -3011,6 +3034,7 @@ const GuardrailsModule = ({ token, plan }) => {
 const ContractsModule = ({ plan, token }) => {
   if (plan !== 'enterprise') return <LockedModule moduleName="Contracts Management" requiredPlan="Enterprise" />;
 
+  const toast = useToast();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
@@ -3023,6 +3047,7 @@ const ContractsModule = ({ plan, token }) => {
         setContracts(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load contracts');
       } finally {
         setLoading(false);
       }
@@ -4062,13 +4087,17 @@ const SecurityCenterModule = ({ plan, isMasked, setIsMasked }) => {
 const GrowthEngineModule = ({ plan, token }) => {
   if (plan !== 'enterprise') return <LockedModule moduleName="Growth Engine" requiredPlan="Enterprise" />;
 
+  const toast = useToast();
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.getClaims(token)
       .then(data => setClaims(Array.isArray(data) ? data : []))
-      .catch(err => console.error('[GrowthEngine] Failed to load claims:', err))
+      .catch(err => {
+        console.error('[GrowthEngine] Failed to load claims:', err);
+        toast.error(err.message || 'Failed to load growth data');
+      })
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -4164,6 +4193,7 @@ const GrowthEngineModule = ({ plan, token }) => {
 
 // ============ APPEALS MODULE (Insurance Only) ============
 const AppealsModule = ({ token }) => {
+  const toast = useToast();
   const [denials, setDenials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -4177,6 +4207,7 @@ const AppealsModule = ({ token }) => {
         setDenials(data);
       } catch (err) {
         console.error(err);
+        toast.error(err.message || 'Failed to load appeals');
       } finally {
         setLoading(false);
       }

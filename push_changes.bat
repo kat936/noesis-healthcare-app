@@ -11,7 +11,7 @@ git add -A
 
 echo.
 echo Committing...
-git commit -m "fix+feat: surgical null safety (denials/scrub/AR-aging/analytics), real legal docs (5), IntegrationStatusModule live+test, claim clearinghouse dispatch, LegalSection error state, ConsentGate real docs, RefreshCw icon, proof endpoint wiring"
+git commit -m "fix: null guards, toast error handlers, Stripe success toast + plan refresh, .toFixed() guards, divide-by-zero guard in scrub rate"
 
 echo.
 echo Pushing to GitHub...
