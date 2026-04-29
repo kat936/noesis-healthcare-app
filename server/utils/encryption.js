@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — PHI Encryption Utility
+ * Noesis.io Health  - PHI Encryption Utility
  * © 2026 Athena Core Technologies
  *
  * AES-256-GCM symmetric encryption for Protected Health Information (PHI).
@@ -28,7 +28,7 @@ function getKey() {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('CRITICAL: PHI_ENCRYPTION_KEY not set. PHI encryption is required in production.');
     }
-    console.warn('⚠ PHI_ENCRYPTION_KEY not set — using dev key (NOT for production)');
+    console.warn('⚠ PHI_ENCRYPTION_KEY not set  - using dev key (NOT for production)');
     encryptionKey = crypto.scryptSync('dev-phi-key-change-in-production', 'salt', KEY_LENGTH);
     return encryptionKey;
   }
@@ -81,7 +81,7 @@ function decryptPHI(encryptedValue) {
 
   const parts = encryptedValue.split(':');
   if (parts.length !== 3) {
-    // Not encrypted (legacy / plain text) — return as-is
+    // Not encrypted (legacy / plain text)  - return as-is
     return encryptedValue;
   }
 

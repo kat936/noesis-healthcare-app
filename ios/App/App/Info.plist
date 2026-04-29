@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- ── Bundle Identity ─────────────────────────────────────────────── -->
+    <key>CFBundleIdentifier</key>
+    <string>com.athenacore.noesishealth</string>
+
+    <key>CFBundleName</key>
+    <string>Noesis Health</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>Noesis Health</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <!-- ── Deployment ──────────────────────────────────────────────────── -->
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+
+    <key>MinimumOSVersion</key>
+    <string>16.0</string>
+
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer><!-- iPhone -->
+        <integer>2</integer><!-- iPad -->
+    </array>
+
+    <!-- ── Orientation ────────────────────────────────────────────────── -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- ── App Transport Security ─────────────────────────────────────── -->
+    <!-- Only allow HTTPS connections. Required for HIPAA compliance. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <!-- Allow localhost for development ONLY - remove for production build -->
+            <key>localhost</key>
+            <dict>
+                <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+
+    <!-- ── Privacy Usage Descriptions ────────────────────────────────── -->
+    <!-- Apple REQUIRES these strings for any permission request -->
+    <!-- Only include permissions actually used by the app -->
+
+    <key>NSCameraUsageDescription</key>
+    <string>Noesis Health uses the camera to scan and upload claim documentation and supporting medical records.</string>
+
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Noesis Health accesses your photo library to attach supporting documentation for insurance claims and prior authorization requests.</string>
+
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Noesis Health saves exported reports and documents to your photo library.</string>
+
+    <key>NSFaceIDUsageDescription</key>
+    <string>Noesis Health uses Face ID to securely authenticate you and protect access to sensitive healthcare and insurance data.</string>
+
+    <!-- ── Launch Screen ───────────────────────────────────────────────── -->
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+
+    <!-- ── Main Interface ─────────────────────────────────────────────── -->
+    <key>UIMainStoryboardFile</key>
+    <string>Main</string>
+
+    <!-- ── Status Bar ─────────────────────────────────────────────────── -->
+    <key>UIStatusBarStyle</key>
+    <string>UIStatusBarStyleLightContent</string>
+
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+
+    <!-- ── Scene Configuration ────────────────────────────────────────── -->
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+        <key>UISceneConfigurations</key>
+        <dict>
+            <key>UIWindowSceneSessionRoleApplication</key>
+            <array>
+                <dict>
+                    <key>UISceneConfigurationName</key>
+                    <string>Default Configuration</string>
+                    <key>UISceneDelegateClassName</key>
+                    <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+                    <key>UISceneStoryboardFile</key>
+                    <string>Main</string>
+                </dict>
+            </array>
+        </dict>
+    </dict>
+
+    <!-- ── Background Modes ───────────────────────────────────────────── -->
+    <!-- Only include if using push notifications -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+    </array>
+
+    <!-- ── Healthcare Data Declaration ───────────────────────────────── -->
+    <!-- Required for HealthKit integration (add if connecting to HealthKit) -->
+    <!--
+    <key>NSHealthShareUsageDescription</key>
+    <string>Noesis Health may access health records to facilitate insurance claim verification.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>Noesis Health does not modify health records.</string>
+    -->
+
+</dict>
+</plist>

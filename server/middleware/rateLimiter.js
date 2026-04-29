@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Rate Limiting Middleware
+ * Noesis.io Health  - Rate Limiting Middleware
  * © 2026 Athena Core Technologies
  *
  * Uses Redis store when available (rate-limit-redis) for distributed
@@ -27,7 +27,7 @@ function getStore() {
 const store = getStore();
 
 /**
- * Authentication Rate Limiter — 10 login attempts per 15 minutes
+ * Authentication Rate Limiter  - 10 login attempts per 15 minutes
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -40,7 +40,7 @@ const authLimiter = rateLimit({
 });
 
 /**
- * General API Rate Limiter — 100 requests per minute
+ * General API Rate Limiter  - 100 requests per minute
  */
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -52,7 +52,7 @@ const apiLimiter = rateLimit({
 });
 
 /**
- * Submission Rate Limiter — 10 submissions per minute
+ * Submission Rate Limiter  - 10 submissions per minute
  */
 const submissionLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -64,7 +64,7 @@ const submissionLimiter = rateLimit({
 });
 
 /**
- * Strict Rate Limiter — 5 requests per minute for sensitive operations
+ * Strict Rate Limiter  - 5 requests per minute for sensitive operations
  */
 const strictLimiter = rateLimit({
   windowMs: 60 * 1000,

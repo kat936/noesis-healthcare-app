@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Denials Route
+ * Noesis.io Health  - Denials Route
  * © 2026 Athena Core Technologies
  *
  * Denial management: list, retrieve, appeal, status updates, analytics.
@@ -103,7 +103,7 @@ function addCarcInfo(denial) {
   };
 }
 
-// ── GET / — List denials ──────────────────────────────────────────────────────
+// ── GET /  - List denials ──────────────────────────────────────────────────────
 router.get('/', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PRACTICE_ADMIN), apiLimiter, async (req, res) => {
   try {
     const { reason, payer, status, startDate, endDate, limit = 20, offset = 0 } = req.query;

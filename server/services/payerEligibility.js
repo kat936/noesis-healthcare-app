@@ -1,24 +1,24 @@
 /**
- * Noesis.io Health — Payer Eligibility Service
+ * Noesis.io Health  - Payer Eligibility Service
  * © 2026 Athena Core Technologies, Inc.
  *
  * Real-time insurance eligibility verification via payer APIs.
  * Supports EDI 270/271 and modern REST-based payer APIs.
  *
  * Supported payers (direct API connections):
- *   - Availity    REST API   — multi-payer hub (Aetna, BCBS, United, Humana, Cigna)
- *   - Change Healthcare REST — enterprise multi-payer
- *   - Medicare    REST API   — CMS eligibility API
+ *   - Availity    REST API    - multi-payer hub (Aetna, BCBS, United, Humana, Cigna)
+ *   - Change Healthcare REST  - enterprise multi-payer
+ *   - Medicare    REST API    - CMS eligibility API
  *
  * Environment variables:
- *   AVAILITY_CLIENT_ID     — Availity API client ID
- *   AVAILITY_CLIENT_SECRET — Availity API client secret
- *   AVAILITY_API_URL       — https://api.availity.com (default)
- *   CHC_CLIENT_ID          — Change Healthcare client ID
- *   CHC_CLIENT_SECRET      — Change Healthcare client secret
- *   CHC_API_URL            — Change Healthcare API base URL
+ *   AVAILITY_CLIENT_ID      - Availity API client ID
+ *   AVAILITY_CLIENT_SECRET  - Availity API client secret
+ *   AVAILITY_API_URL        - https://api.availity.com (default)
+ *   CHC_CLIENT_ID           - Change Healthcare client ID
+ *   CHC_CLIENT_SECRET       - Change Healthcare client secret
+ *   CHC_API_URL             - Change Healthcare API base URL
  *
- * Payer ID reference (partial — 8,000+ payers via clearinghouse):
+ * Payer ID reference (partial  - 8,000+ payers via clearinghouse):
  *   Aetna          = AETNA  / 60054
  *   BCBS plans     = varies by state (e.g., 00050 for national)
  *   United HC      = UHC    / 87726
@@ -264,7 +264,7 @@ function demoEligibilityResponse(patient, payer) {
     },
     coinsurance:    0.20,
     coverages: {
-      preventive:      '100% — no cost share',
+      preventive:      '100%  - no cost share',
       primaryCare:     '80% after deductible',
       specialist:      '80% after deductible',
       emergency:       '80% after deductible',
@@ -294,7 +294,7 @@ function getStatus() {
  *
  * @param {Object} patient  - { memberId, firstName, lastName, dateOfBirth, gender }
  * @param {Object} provider - { npi, organizationName }
- * @param {Object} payer    - { id, payerId, name } — use PAYER_CATALOG key or direct payerId
+ * @param {Object} payer    - { id, payerId, name }  - use PAYER_CATALOG key or direct payerId
  * @param {string} serviceType - EDI service type code (default '30' = health benefit plan)
  */
 async function checkEligibility({ patient, provider, payer, serviceType = '30' }) {
@@ -320,7 +320,7 @@ async function checkEligibility({ patient, provider, payer, serviceType = '30' }
 }
 
 /**
- * Batch eligibility check — useful for pre-visit verification.
+ * Batch eligibility check  - useful for pre-visit verification.
  * Returns results array in same order as input.
  */
 async function checkEligibilityBatch(requests) {

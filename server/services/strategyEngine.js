@@ -1,7 +1,7 @@
 /**
- * Noesis.io Health — Claims Strategy Engine
+ * Noesis.io Health  - Claims Strategy Engine
  * © 2026 Athena Core Technologies. All rights reserved.
- * PROPRIETARY — Server-side only. Not distributed to clients.
+ * PROPRIETARY  - Server-side only. Not distributed to clients.
  *
  * This engine scores claims against medical coding rules, bundling rules,
  * medical necessity, and payer contracts. Output informs decisions on
@@ -138,7 +138,7 @@ class StrategyEngine {
     if (!validDx) {
       return {
         score: 0.7,
-        details: 'CPT code not in standard pairing database — manual review recommended'
+        details: 'CPT code not in standard pairing database  - manual review recommended'
       };
     }
     if (validDx.includes(claim.icd10Code)) {
@@ -161,13 +161,13 @@ class StrategyEngine {
     if (highNecessityCodes.includes(claim.icd10Code)) {
       return {
         score: 1.0,
-        details: 'High medical necessity — acute/serious/life-threatening condition'
+        details: 'High medical necessity  - acute/serious/life-threatening condition'
       };
     }
     if (claim.icd10Code?.startsWith('Z')) {
       return {
         score: 0.5,
-        details: 'Z-code (preventive/routine) — ensure clinical documentation supports medical necessity'
+        details: 'Z-code (preventive/routine)  - ensure clinical documentation supports medical necessity'
       };
     }
     if (routineCodes.includes(claim.icd10Code)) {
@@ -175,7 +175,7 @@ class StrategyEngine {
     }
     return {
       score: 0.75,
-      details: 'Standard medical necessity — documentation should support diagnosis'
+      details: 'Standard medical necessity  - documentation should support diagnosis'
     };
   }
 
@@ -191,18 +191,18 @@ class StrategyEngine {
     if (daysSinceService <= 90) {
       return {
         score: 1.0,
-        details: `${daysSinceService} days since service — within standard 90-day filing window`
+        details: `${daysSinceService} days since service  - within standard 90-day filing window`
       };
     }
     if (daysSinceService <= 180) {
       return {
         score: 0.6,
-        details: `${daysSinceService} days — approaching extended filing deadline`
+        details: `${daysSinceService} days  - approaching extended filing deadline`
       };
     }
     return {
       score: 0.1,
-      details: `${daysSinceService} days — may exceed timely filing limit for most payers`
+      details: `${daysSinceService} days  - may exceed timely filing limit for most payers`
     };
   }
 
@@ -233,7 +233,7 @@ class StrategyEngine {
    */
   checkModifiers(claim) {
     if (!claim.modifiers || claim.modifiers.length === 0) {
-      return { score: 0.8, details: 'No modifiers applied — verify if modifiers needed for this CPT' };
+      return { score: 0.8, details: 'No modifiers applied  - verify if modifiers needed for this CPT' };
     }
 
     const validModifiers = [
@@ -260,7 +260,7 @@ class StrategyEngine {
     };
 
     if (bundledPairs[claim.cptCode]) {
-      return { score: 0.9, details: 'Code may have bundling restrictions — verify separately billable items' };
+      return { score: 0.9, details: 'Code may have bundling restrictions  - verify separately billable items' };
     }
     return { score: 0.95, details: 'No known NCCI bundling conflicts detected' };
   }
@@ -273,7 +273,7 @@ class StrategyEngine {
     if (claim.urgency === 'emergency') {
       return { score: 1.0, details: 'Emergency claim designation confirmed' };
     }
-    return { score: 0.3, details: 'Non-emergency claim in emergency rule pack — verify urgency flag' };
+    return { score: 0.3, details: 'Non-emergency claim in emergency rule pack  - verify urgency flag' };
   }
 
   checkLevelOfCare(claim) {
@@ -283,7 +283,7 @@ class StrategyEngine {
   checkOONOverride(claim) {
     return {
       score: 0.7,
-      details: 'Out-of-network emergency provisions may apply — check contract'
+      details: 'Out-of-network emergency provisions may apply  - check contract'
     };
   }
 
@@ -292,7 +292,7 @@ class StrategyEngine {
   }
 
   checkPriorAuth(claim) {
-    return { score: 0.8, details: 'Prior authorization requirement flagged — verify status' };
+    return { score: 0.8, details: 'Prior authorization requirement flagged  - verify status' };
   }
 
   checkGlobalPeriod(claim) {
@@ -324,20 +324,20 @@ class StrategyEngine {
       return {
         action: 'APPROVE_SUBMIT',
         rationale: 'Claim passes all validation rules with high confidence',
-        impact: 'Low denial risk — proceed with submission'
+        impact: 'Low denial risk  - proceed with submission'
       };
     }
     if (score >= 0.6) {
       return {
         action: 'REVIEW_RECOMMENDED',
-        rationale: 'Some validation rules flagged — manual review recommended before submission',
-        impact: 'Moderate denial risk — address flagged items'
+        rationale: 'Some validation rules flagged  - manual review recommended before submission',
+        impact: 'Moderate denial risk  - address flagged items'
       };
     }
     return {
       action: 'HOLD_FOR_CORRECTION',
-      rationale: 'Multiple validation failures detected — claim needs correction before submission',
-      impact: 'High denial risk — do not submit without corrections'
+      rationale: 'Multiple validation failures detected  - claim needs correction before submission',
+      impact: 'High denial risk  - do not submit without corrections'
     };
   }
 

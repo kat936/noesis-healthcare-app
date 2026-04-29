@@ -11,7 +11,7 @@ git add -A
 
 echo.
 echo Committing...
-git commit -m "security: CTO/HIPAA audit fixes — session timeout, JWT blacklist, Stripe webhook, plan gating, PHI path scrubbing"
+git commit -m "feat: GuardrailsModule HIPAA compliance+rules+validator, live notification bell, GrowthEngine live data, Dashboard action items, Analytics Pre-Check Intel tab, full light/dark mode, PreCheck denial engine, iOS package, toast system, CSV export"
 
 echo.
 echo Pushing to GitHub...

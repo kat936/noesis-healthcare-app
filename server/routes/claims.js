@@ -117,7 +117,7 @@ router.get('/', authenticate, apiLimiter, async (req, res) => {
 
 /**
  * POST /claims
- * Submit new claim — runs through strategy engine before saving.
+ * Submit new claim  - runs through strategy engine before saving.
  */
 router.post(
   '/',

@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Audit Logging Middleware
+ * Noesis.io Health  - Audit Logging Middleware
  * © 2026 Athena Core Technologies
  *
  * HIPAA §164.312(b) requirement: audit controls must record and examine
@@ -20,7 +20,7 @@ let auditLogs = [];
 // Replace dynamic path segments that could contain PHI identifiers with tokens.
 // Patterns: UUIDs, numeric IDs ≥ 4 digits, NPI (exactly 10 digits), DEA numbers.
 const UUID_RE    = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
-const NPI_RE     = /\b\d{10}\b/g;       // 10-digit NPI — must come before generic numeric
+const NPI_RE     = /\b\d{10}\b/g;       // 10-digit NPI  - must come before generic numeric
 const NUMERIC_RE = /\b\d{4,}\b/g;       // numeric IDs ≥ 4 digits
 
 function sanitizePath(rawPath) {
@@ -74,7 +74,7 @@ function auditLogMiddleware(req, res, next) {
       userRole: req.user?.role || 'unauthenticated',
       action: `${req.method} ${safePath}`,
       method: req.method,
-      path: safePath,   // sanitized — no raw patient/member IDs in audit trail
+      path: safePath,   // sanitized  - no raw patient/member IDs in audit trail
       statusCode: res.statusCode,
       ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown',
@@ -87,7 +87,7 @@ function auditLogMiddleware(req, res, next) {
       auditLogs = auditLogs.slice(-MAX_LOGS);
     }
 
-    // Async DB persistence — fire and forget
+    // Async DB persistence  - fire and forget
     persistToDB(entry);
 
     return originalSend(data);

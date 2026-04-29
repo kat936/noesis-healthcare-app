@@ -1,12 +1,12 @@
 /**
- * Noesis.io Health — Authentication & Authorization Middleware
+ * Noesis.io Health  - Authentication & Authorization Middleware
  * © 2026 Athena Core Technologies, Inc.
  *
- * authenticate()   — verifies JWT Bearer token, checks Redis blacklist (by token),
+ * authenticate()    - verifies JWT Bearer token, checks Redis blacklist (by token),
  *                    enforces HIPAA session timeout (§164.312(a)(2)(iii))
- * authorize()      — role-based access control
- * requirePlan()    — plan-based feature gating (handles legacy plan names)
- * generateToken()  — signs JWT with jti UUID for per-token blacklisting
+ * authorize()       - role-based access control
+ * requirePlan()     - plan-based feature gating (handles legacy plan names)
+ * generateToken()   - signs JWT with jti UUID for per-token blacklisting
  *
  * AUDIT FIX 2026-04-27:
  *   - Session timeout now integrated here (was in global middleware before req.user was set)
@@ -83,7 +83,7 @@ async function isBlacklisted(token) {
     if (!redis.isAvailable()) { return false; }
     return redis.isTokenBlacklisted(token);
   } catch {
-    return false; // fail open — don't lock out users over Redis issues
+    return false; // fail open  - don't lock out users over Redis issues
   }
 }
 
@@ -135,7 +135,7 @@ function authenticate(req, res, next) {
       });
     }
 
-    // ── HIPAA §164.312(a)(2)(iii) — Automatic Session Logoff ──────────────
+    // ── HIPAA §164.312(a)(2)(iii)  - Automatic Session Logoff ──────────────
     // Session timeout is checked HERE (post-JWT-verify) so req.user is available.
     // Previously this was a global middleware where req.user was never set.
     const isExempt = SESSION_EXEMPT_PATHS.some((p) => req.originalUrl.includes(p));
@@ -176,13 +176,13 @@ function authenticate(req, res, next) {
           res.setHeader('X-Session-Timeout',   timeoutMinutes);
         }
       } catch {
-        // Session check failure is non-fatal — continue with the request
+        // Session check failure is non-fatal  - continue with the request
       }
     }
 
     next();
   }).catch(() => {
-    // Redis completely unavailable — proceed without blacklist/session check (fail open)
+    // Redis completely unavailable  - proceed without blacklist/session check (fail open)
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       decoded.plan  = normalizePlan(decoded.plan) || decoded.plan;
@@ -195,7 +195,7 @@ function authenticate(req, res, next) {
   });
 }
 
-// ── authorize — role-based ────────────────────────────────────────────────────
+// ── authorize  - role-based ────────────────────────────────────────────────────
 function authorize(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
@@ -211,7 +211,7 @@ function authorize(...roles) {
   };
 }
 
-// ── requirePlan — plan-based feature gating ───────────────────────────────────
+// ── requirePlan  - plan-based feature gating ───────────────────────────────────
 // Normalizes both allowed plans AND user plan for legacy name backward compat
 function requirePlan(...plans) {
   const normalized = plans.map((p) => normalizePlan(p) || p);

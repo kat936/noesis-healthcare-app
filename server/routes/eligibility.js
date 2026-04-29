@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Eligibility Route
+ * Noesis.io Health  - Eligibility Route
  * © 2026 Athena Core Technologies, Inc.
  *
  * Real-time insurance eligibility verification via payer APIs.
@@ -42,7 +42,7 @@ async function logEligibilityCheck(req, result, payerId) {
   } catch { /* audit failure never blocks the request */ }
 }
 
-// ── POST /verify — single patient eligibility check ───────────────────────────
+// ── POST /verify  - single patient eligibility check ───────────────────────────
 router.post(
   '/verify',
   authenticate,
@@ -123,7 +123,7 @@ router.post(
   }
 );
 
-// ── GET /history/:memberId — eligibility check history ────────────────────────
+// ── GET /history/:memberId  - eligibility check history ────────────────────────
 router.get(
   '/history/:memberId',
   authenticate,
@@ -164,7 +164,7 @@ router.get(
   }
 );
 
-// ── POST /batch — multiple patients at once ────────────────────────────────────
+// ── POST /batch  - multiple patients at once ────────────────────────────────────
 router.post(
   '/batch',
   authenticate,
@@ -218,7 +218,7 @@ router.post(
   }
 );
 
-// ── GET /payers — connected payer catalog ─────────────────────────────────────
+// ── GET /payers  - connected payer catalog ─────────────────────────────────────
 router.get('/payers', authenticate, requirePlan('solo', 'group', 'enterprise'), apiLimiter, (req, res) => {
   const { PAYER_CATALOG } = require('../services/payerEligibility');
   const status = require('../services/payerEligibility').getStatus();

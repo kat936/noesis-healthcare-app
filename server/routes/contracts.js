@@ -18,7 +18,7 @@ const contracts = new Map();
 router.get(
   '/',
   authenticate,
-  requirePlan('professional', 'enterprise'),
+  requirePlan('enterprise'),
   apiLimiter,
   (req, res) => {
     try {
@@ -102,7 +102,7 @@ router.post(
  * GET /contracts/:id
  * Get contract detail
  */
-router.get('/:id', authenticate, requirePlan('professional', 'enterprise'), apiLimiter, (req, res) => {
+router.get('/:id', authenticate, requirePlan('enterprise'), apiLimiter, (req, res) => {
   try {
     const contract = contracts.get(req.params.id);
 

@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Express Server Entry Point
+ * Noesis.io Health  - Express Server Entry Point
  * © 2026 Athena Core Technologies, Inc.
  *
  * AUDIT FIXES 2026-04-27:
@@ -64,7 +64,7 @@ app.use(cors({
   exposedHeaders: ['X-Session-Remaining', 'X-Session-Timeout'],
 }));
 
-// ── Stripe webhook — MUST be mounted BEFORE express.json() ────────────────────
+// ── Stripe webhook  - MUST be mounted BEFORE express.json() ────────────────────
 // Stripe validates the HMAC signature against the raw request bytes.
 // If express.json() runs first, the body is parsed and re-serialized, breaking the sig.
 // Solution: apply express.raw() only to this one path, then delegate to billing router.
@@ -129,6 +129,7 @@ app.use('/api/v1/adjudication', require('./routes/adjudication'));
 app.use('/api/v1/network',      require('./routes/network'));
 app.use('/api/v1/estimator',    require('./routes/estimator'));
 app.use('/api/v1/scrubbing',    require('./routes/scrubbing'));
+app.use('/api/v1/precheck',     require('./routes/precheck'));
 app.use('/api/v1/audit',        require('./routes/audit'));
 app.use('/api/v1/hipaa',        require('./routes/hipaa'));
 
@@ -139,7 +140,7 @@ app.use((req, res) => {
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
-  // Don't log CORS errors at full stack — they are client config issues
+  // Don't log CORS errors at full stack  - they are client config issues
   if (err.message && err.message.startsWith('CORS')) {
     return res.status(403).json({ error: err.message, code: 'CORS_ERROR' });
   }

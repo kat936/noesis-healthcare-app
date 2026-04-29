@@ -1,23 +1,23 @@
 /**
- * Noesis.io Health — Integrations Route
+ * Noesis.io Health  - Integrations Route
  * © 2026 Athena Core Technologies, Inc.
  *
  * All external service integrations surfaced as REST endpoints:
- *   GET  /integrations/status                — health check all integrations
- *   POST /integrations/npi/lookup            — REAL NPI Registry (free, no key)
- *   GET  /integrations/npi/:npi              — quick NPI lookup by number
- *   POST /integrations/fda/drugs             — REAL OpenFDA drug search
- *   POST /integrations/fda/devices           — REAL OpenFDA device search
- *   POST /integrations/eligibility/check     — payer eligibility 270/271
- *   POST /integrations/eligibility/batch     — batch eligibility check
- *   POST /integrations/clearinghouse/submit  — EDI 837P claim submission
- *   GET  /integrations/clearinghouse/status/:id — claim tracking 276
- *   GET  /integrations/clearinghouse/eras    — retrieve 835 ERAs
- *   POST /integrations/ehr/patients/search   — FHIR R4 patient search
- *   GET  /integrations/ehr/patients/:id/coverage  — FHIR coverage
- *   GET  /integrations/ehr/patients/:id/encounters — FHIR encounter history
- *   POST /integrations/ehr/claims/submit     — FHIR R4 claim submission
- *   GET  /integrations/proof/:provider       — live proof-of-integration test
+ *   GET  /integrations/status                 - health check all integrations
+ *   POST /integrations/npi/lookup             - REAL NPI Registry (free, no key)
+ *   GET  /integrations/npi/:npi               - quick NPI lookup by number
+ *   POST /integrations/fda/drugs              - REAL OpenFDA drug search
+ *   POST /integrations/fda/devices            - REAL OpenFDA device search
+ *   POST /integrations/eligibility/check      - payer eligibility 270/271
+ *   POST /integrations/eligibility/batch      - batch eligibility check
+ *   POST /integrations/clearinghouse/submit   - EDI 837P claim submission
+ *   GET  /integrations/clearinghouse/status/:id  - claim tracking 276
+ *   GET  /integrations/clearinghouse/eras     - retrieve 835 ERAs
+ *   POST /integrations/ehr/patients/search    - FHIR R4 patient search
+ *   GET  /integrations/ehr/patients/:id/coverage   - FHIR coverage
+ *   GET  /integrations/ehr/patients/:id/encounters  - FHIR encounter history
+ *   POST /integrations/ehr/claims/submit      - FHIR R4 claim submission
+ *   GET  /integrations/proof/:provider        - live proof-of-integration test
  */
 
 const express = require('express');
@@ -35,7 +35,7 @@ const ehrConnector     = require('../services/ehrConnector');
 
 const router = express.Router();
 
-// ── GET /status — all integrations at a glance ────────────────────────────────
+// ── GET /status  - all integrations at a glance ────────────────────────────────
 router.get('/status', authenticate, apiLimiter, (req, res) => {
   try {
     res.json({
@@ -304,7 +304,7 @@ router.post(
   }
 );
 
-// ── GET /proof/:provider — live integration smoke test ────────────────────────
+// ── GET /proof/:provider  - live integration smoke test ────────────────────────
 router.get('/proof/:provider', authenticate, apiLimiter, async (req, res) => {
   try {
     const { provider } = req.params;

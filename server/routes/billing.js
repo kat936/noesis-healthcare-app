@@ -1,25 +1,25 @@
 /**
- * Noesis.io Health — Billing Route
+ * Noesis.io Health  - Billing Route
  * © 2026 Athena Core Technologies, Inc.
  *
  * Hybrid pricing:
- *   Solo        $299/mo  — up to 3 providers, 500 claims included
- *   Group       $799/mo  — up to 20 providers, 2,000 claims included
- *   Enterprise  Custom   — contact sales
+ *   Solo        $299/mo   - up to 3 providers, 500 claims included
+ *   Group       $799/mo   - up to 20 providers, 2,000 claims included
+ *   Enterprise  Custom    - contact sales
  *
  * Endpoints:
- *   GET  /billing/plans              — public plan listing (no auth)
- *   GET  /billing/subscription       — current user's subscription
- *   POST /billing/checkout           — create Stripe checkout session
- *   POST /billing/portal             — create Stripe customer portal session
- *   GET  /billing/invoices           — list invoices from Stripe
- *   POST /billing/cancel             — cancel subscription at period end
- *   GET  /billing/entitlement        — check feature entitlement
- *   POST /billing/webhook            — Stripe webhook (raw body required)
- *   GET  /billing/era                — ERA / payment list
- *   GET  /billing/aging              — accounts receivable aging
- *   GET  /billing/analytics          — revenue analytics
- *   POST /billing/contact-sales      — enterprise sales inquiry
+ *   GET  /billing/plans               - public plan listing (no auth)
+ *   GET  /billing/subscription        - current user's subscription
+ *   POST /billing/checkout            - create Stripe checkout session
+ *   POST /billing/portal              - create Stripe customer portal session
+ *   GET  /billing/invoices            - list invoices from Stripe
+ *   POST /billing/cancel              - cancel subscription at period end
+ *   GET  /billing/entitlement         - check feature entitlement
+ *   POST /billing/webhook             - Stripe webhook (raw body required)
+ *   GET  /billing/era                 - ERA / payment list
+ *   GET  /billing/aging               - accounts receivable aging
+ *   GET  /billing/analytics           - revenue analytics
+ *   POST /billing/contact-sales       - enterprise sales inquiry
  */
 
 const express = require('express');
@@ -31,7 +31,7 @@ const { PLANS, PLAN_FEATURES, PLAN_LIMITS, getPublicPlans } = require('../config
 
 const router = express.Router();
 
-// ── GET /plans — public, no auth ─────────────────────────────────────────────
+// ── GET /plans  - public, no auth ─────────────────────────────────────────────
 router.get('/plans', (req, res) => {
   res.json({ success: true, plans: getPublicPlans() });
 });
@@ -81,7 +81,7 @@ router.get('/subscription', authenticate, apiLimiter, async (req, res) => {
   }
 });
 
-// ── POST /checkout — create Stripe checkout session ───────────────────────────
+// ── POST /checkout  - create Stripe checkout session ───────────────────────────
 router.post('/checkout', authenticate, submissionLimiter, async (req, res) => {
   try {
     const { plan, cycle = 'monthly', successUrl, cancelUrl } = req.body;
@@ -138,7 +138,7 @@ router.post('/checkout', authenticate, submissionLimiter, async (req, res) => {
   }
 });
 
-// ── POST /portal — Stripe customer portal ────────────────────────────────────
+// ── POST /portal  - Stripe customer portal ────────────────────────────────────
 router.post('/portal', authenticate, submissionLimiter, async (req, res) => {
   try {
     const { returnUrl } = req.body;
@@ -220,7 +220,7 @@ router.get('/entitlement', authenticate, apiLimiter, async (req, res) => {
   }
 });
 
-// ── GET /era — ERA / payment remittance list ──────────────────────────────────
+// ── GET /era  - ERA / payment remittance list ──────────────────────────────────
 router.get('/era', authenticate, requirePlan('solo', 'group', 'enterprise'), apiLimiter, async (req, res) => {
   try {
     const clearinghouse = require('../services/clearinghouse');
@@ -232,7 +232,7 @@ router.get('/era', authenticate, requirePlan('solo', 'group', 'enterprise'), api
   }
 });
 
-// ── GET /aging — accounts receivable aging ────────────────────────────────────
+// ── GET /aging  - accounts receivable aging ────────────────────────────────────
 router.get('/aging', authenticate, requirePlan('solo', 'group', 'enterprise'), apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {
@@ -270,7 +270,7 @@ router.get('/aging', authenticate, requirePlan('solo', 'group', 'enterprise'), a
   }
 });
 
-// ── GET /analytics — available to all plans (solo gets summary, group/enterprise full) ──
+// ── GET /analytics  - available to all plans (solo gets summary, group/enterprise full) ──
 router.get('/analytics', authenticate, requirePlan('solo', 'group', 'enterprise'), apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {
@@ -321,7 +321,7 @@ router.get('/analytics', authenticate, requirePlan('solo', 'group', 'enterprise'
   }
 });
 
-// ── POST /contact-sales — enterprise inquiry ──────────────────────────────────
+// ── POST /contact-sales  - enterprise inquiry ──────────────────────────────────
 router.post('/contact-sales', submissionLimiter, async (req, res) => {
   try {
     const { name, email, organization, providerCount, message } = req.body;
@@ -342,7 +342,7 @@ router.post('/contact-sales', submissionLimiter, async (req, res) => {
   }
 });
 
-// ── POST /webhook — Stripe webhook ───────────────────────────────────────────
+// ── POST /webhook  - Stripe webhook ───────────────────────────────────────────
 // IMPORTANT: This route is mounted in index.js with express.raw() BEFORE express.json()
 // so that req.body is a raw Buffer here (required for Stripe HMAC sig validation).
 // The router also handles this path for non-webhook requests normally.

@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Database Connection
+ * Noesis.io Health  - Database Connection
  * © 2026 Athena Core Technologies
  *
  * PostgreSQL connection pool via node-postgres (pg).
@@ -36,11 +36,11 @@ if (process.env.DATABASE_URL) {
     connected = true;
     console.log('✓ PostgreSQL connection verified');
   }).catch((err) => {
-    console.warn('⚠ PostgreSQL unavailable — running in in-memory mode:', err.message);
+    console.warn('⚠ PostgreSQL unavailable  - running in in-memory mode:', err.message);
     connected = false;
   });
 } else {
-  console.warn('⚠ DATABASE_URL not set — running in in-memory mode (not for production)');
+  console.warn('⚠ DATABASE_URL not set  - running in in-memory mode (not for production)');
 }
 
 /**
@@ -282,7 +282,7 @@ async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_denials_provider ON denials(provider_id);
     CREATE INDEX IF NOT EXISTS idx_denials_status ON denials(status);
     CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
-  `).catch(() => {}); // indexes may already exist — safe to ignore
+  `).catch(() => {}); // indexes may already exist  - safe to ignore
 
   console.log('✓ Database schema initialized');
 }

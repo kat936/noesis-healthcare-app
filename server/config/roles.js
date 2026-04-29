@@ -1,11 +1,11 @@
 /**
- * Noesis.io Health — Role & Plan Configuration
+ * Noesis.io Health  - Role & Plan Configuration
  * © 2026 Athena Core Technologies, Inc.
  *
  * Three-tier hybrid pricing:
- *   Solo          $299/mo  — up to 3 providers, 500 claims included
- *   Group         $799/mo  — up to 20 providers, 2,000 claims included
- *   Enterprise    Custom   — unlimited providers, unlimited claims, white-label
+ *   Solo          $299/mo   - up to 3 providers, 500 claims included
+ *   Group         $799/mo   - up to 20 providers, 2,000 claims included
+ *   Enterprise    Custom    - unlimited providers, unlimited claims, white-label
  *
  * Hybrid overage (Solo + Group only):
  *   Solo:  $0.45/claim above 500

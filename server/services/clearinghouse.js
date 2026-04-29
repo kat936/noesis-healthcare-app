@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — EDI Clearinghouse Service
+ * Noesis.io Health  - EDI Clearinghouse Service
  * © 2026 Athena Core Technologies, Inc.
  *
  * Handles EDI 837P/837I claim submission and 835 ERA parsing.
@@ -327,7 +327,7 @@ async function getERAs({ fromDate, toDate, limit = 20 } = {}) {
 
 /**
  * Send EDI 270 eligibility request through the clearinghouse.
- * (Alternative to direct payer API — same network, different path)
+ * (Alternative to direct payer API  - same network, different path)
  */
 async function checkEligibility270(patient, provider, payer) {
   if (!isConfigured()) {
@@ -336,7 +336,7 @@ async function checkEligibility270(patient, provider, payer) {
       demo:      true,
       eligible:  true,
       memberId:  patient.memberId || 'MEM-DEMO-001',
-      planName:  'PPO Gold — Demo Plan',
+      planName:  'PPO Gold  - Demo Plan',
       deductible: { total: 1500, met: 420 },
       outOfPocket: { total: 4000, met: 840 },
       copays: { primaryCare: 30, specialist: 60, urgent: 90, emergency: 350 },

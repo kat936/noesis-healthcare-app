@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Messaging Route
+ * Noesis.io Health  - Messaging Route
  * © 2026 Athena Core Technologies
  *
  * HIPAA-compliant secure messaging between providers and patients.
@@ -52,7 +52,7 @@ function convRowToApi(row) {
   };
 }
 
-// ── GET /conversations — List user's conversations ────────────────────────────
+// ── GET /conversations  - List user's conversations ────────────────────────────
 router.get('/conversations', authenticate, apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {
@@ -104,7 +104,7 @@ router.get('/conversations', authenticate, apiLimiter, async (req, res) => {
   }
 });
 
-// ── POST /conversations — Create conversation ─────────────────────────────────
+// ── POST /conversations  - Create conversation ─────────────────────────────────
 router.post('/conversations', authenticate, apiLimiter, async (req, res) => {
   try {
     const { participantIds } = req.body;
@@ -137,7 +137,7 @@ router.post('/conversations', authenticate, apiLimiter, async (req, res) => {
   }
 });
 
-// ── GET /conversations/:id — Get conversation with messages ───────────────────
+// ── GET /conversations/:id  - Get conversation with messages ───────────────────
 router.get('/conversations/:id', authenticate, apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {
@@ -180,7 +180,7 @@ router.get('/conversations/:id', authenticate, apiLimiter, async (req, res) => {
   }
 });
 
-// ── POST /messages — Send encrypted message ───────────────────────────────────
+// ── POST /messages  - Send encrypted message ───────────────────────────────────
 router.post(
   '/messages',
   authenticate,
@@ -274,7 +274,7 @@ router.post(
   }
 );
 
-// ── PUT /messages/:id/read — Mark message as read ────────────────────────────
+// ── PUT /messages/:id/read  - Mark message as read ────────────────────────────
 router.put('/messages/:id/read', authenticate, apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {

@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Stripe Billing Service
+ * Noesis.io Health  - Stripe Billing Service
  * © 2026 Athena Core Technologies, Inc.
  *
  * Handles subscription lifecycle for the hybrid pricing model:
@@ -80,14 +80,14 @@ async function createCheckoutSession({ customerId, plan, cycle = 'monthly', succ
   const pricing = PLAN_PRICING[plan];
 
   if (!pricing || pricing.contactSales) {
-    throw new Error('Enterprise plan requires a sales quote — use /billing/contact-sales');
+    throw new Error('Enterprise plan requires a sales quote  - use /billing/contact-sales');
   }
 
   const priceId = cycle === 'annual' ? pricing.stripeAnnualPriceId : pricing.stripeMonthlyPriceId;
   const overagePriceId = pricing.stripeOveragePriceId;
 
   if (!stripe) {
-    // Demo mode — return a mock session
+    // Demo mode  - return a mock session
     return {
       id:          `cs_demo_${Date.now()}`,
       url:         successUrl + '?session_id=demo&plan=' + plan,
@@ -100,7 +100,7 @@ async function createCheckoutSession({ customerId, plan, cycle = 'monthly', succ
 
   const lineItems = [{ price: priceId, quantity: 1 }];
   if (overagePriceId) {
-    lineItems.push({ price: overagePriceId }); // metered — no quantity
+    lineItems.push({ price: overagePriceId }); // metered  - no quantity
   }
 
   const params = {
@@ -180,7 +180,7 @@ function validateWebhook(rawBody, signature) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!stripe || !secret) {
-    // Demo mode — trust all webhooks (never do this in production)
+    // Demo mode  - trust all webhooks (never do this in production)
     try {
       const event = JSON.parse(rawBody);
       return { valid: true, event };

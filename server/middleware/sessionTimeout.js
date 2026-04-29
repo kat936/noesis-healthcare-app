@@ -1,8 +1,8 @@
 /**
- * Noesis.io Health — HIPAA Session Timeout Middleware
+ * Noesis.io Health  - HIPAA Session Timeout Middleware
  * © 2026 Athena Core Technologies, Inc.
  *
- * HIPAA §164.312(a)(2)(iii) — Automatic Logoff:
+ * HIPAA §164.312(a)(2)(iii)  - Automatic Logoff:
  * "Implement electronic procedures that terminate an electronic session
  * after a predetermined time of inactivity."
  *
@@ -69,7 +69,7 @@ async function clearActivity(userId) {
  * Returns 401 SESSION_EXPIRED if the user has been inactive beyond their plan limit.
  */
 async function sessionTimeoutMiddleware(req, res, next) {
-  if (!req.user) { return next(); } // unauthenticated request — skip
+  if (!req.user) { return next(); } // unauthenticated request  - skip
 
   const userId  = req.user.id;
   const plan    = req.user.plan || PLANS.SOLO;

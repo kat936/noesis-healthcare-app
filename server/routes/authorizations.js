@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Prior Authorizations Route
+ * Noesis.io Health  - Prior Authorizations Route
  * © 2026 Athena Core Technologies, Inc.
  *
  * Prior authorization (PA) management for Group and Enterprise plans.
@@ -51,7 +51,7 @@ function rowToApi(r) {
   };
 }
 
-// ── GET / — list authorizations ───────────────────────────────────────────────
+// ── GET /  - list authorizations ───────────────────────────────────────────────
 router.get('/', authenticate, apiLimiter, async (req, res) => {
   try {
     const { status, limit = 20, offset = 0 } = req.query;
@@ -85,7 +85,7 @@ router.get('/', authenticate, apiLimiter, async (req, res) => {
   }
 });
 
-// ── POST / — request prior authorization ──────────────────────────────────────
+// ── POST /  - request prior authorization ──────────────────────────────────────
 router.post('/', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PRACTICE_ADMIN), requirePlan('group', 'enterprise'), submissionLimiter, validate(authorizationSchema), async (req, res) => {
   try {
     const d = req.validated;
@@ -120,7 +120,7 @@ router.post('/', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PRACTICE_AD
   }
 });
 
-// ── GET /:id — authorization detail ──────────────────────────────────────────
+// ── GET /:id  - authorization detail ──────────────────────────────────────────
 router.get('/:id', authenticate, apiLimiter, async (req, res) => {
   try {
     if (db.isConnected()) {
@@ -194,7 +194,7 @@ router.post('/:id/deny', authenticate, authorize(ROLES.INSURANCE_REP, ROLES.PRAC
   }
 });
 
-// ── PUT /:id — update authorization ──────────────────────────────────────────
+// ── PUT /:id  - update authorization ──────────────────────────────────────────
 router.put('/:id', authenticate, authorize(ROLES.INSURANCE_REP, ROLES.PRACTICE_ADMIN), apiLimiter, validate(authorizationUpdateSchema), async (req, res) => {
   try {
     const { status, approvalNotes } = req.validated;

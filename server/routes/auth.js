@@ -90,7 +90,7 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
         role:  user.role,
         plan:  user.plan,
       },
-      expiresIn: 3600, // seconds — FIX: was string '1h', frontend does * 1000 so needs number
+      expiresIn: 3600, // seconds  - FIX: was string '1h', frontend does * 1000 so needs number
     });
   } catch (err) {
     console.error('Login error:', err.message);
@@ -116,7 +116,7 @@ router.post('/logout', authenticate, async (req, res) => {
     // Clear HIPAA session activity record so inactivity window resets
     await clearActivity(req.user.id);
   } catch {
-    // Redis unavailable — logout still succeeds; client discards token
+    // Redis unavailable  - logout still succeeds; client discards token
   }
 
   res.json({ success: true, message: 'Logged out successfully' });
@@ -148,7 +148,7 @@ router.get('/session', authenticate, (req, res) => {
 });
 
 /**
- * POST /auth/register (dev/admin only — not exposed in production by default)
+ * POST /auth/register (dev/admin only  - not exposed in production by default)
  * Creates a new user with a hashed password.
  */
 router.post('/register', async (req, res) => {

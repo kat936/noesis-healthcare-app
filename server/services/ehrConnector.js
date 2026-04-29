@@ -1,15 +1,15 @@
 /**
- * Noesis.io Health — EHR FHIR R4 Connector
+ * Noesis.io Health  - EHR FHIR R4 Connector
  * © 2026 Athena Core Technologies, Inc.
  *
  * Connects to EHR systems via HL7 FHIR R4 REST API.
  * Supports SMART on FHIR OAuth2 app launch for user-facing EHR integrations.
  *
  * Tested EHR targets:
- *   Epic        — https://fhir.epic.com       (sandbox: open.epic.com/FHIR/R4)
- *   Athenahealth — https://api.platform.athenahealth.com/fhir/r4
- *   Cerner      — https://fhir-myrecord.cerner.com/r4
- *   Meditech    — https://mtwilson.meditech.com/fhir/r4
+ *   Epic         - https://fhir.epic.com       (sandbox: open.epic.com/FHIR/R4)
+ *   Athenahealth  - https://api.platform.athenahealth.com/fhir/r4
+ *   Cerner       - https://fhir-myrecord.cerner.com/r4
+ *   Meditech     - https://mtwilson.meditech.com/fhir/r4
  *
  * Environment variables:
  *   EHR_PROVIDER         = 'epic' | 'athena' | 'cerner' | 'meditech'
@@ -20,15 +20,15 @@
  *   EHR_ORGANIZATION_ID  = Your NPI / organization ID in the EHR
  *
  * FHIR resources used:
- *   Patient         — demographics, insurance
- *   Practitioner    — provider directory
- *   Coverage        — insurance coverage
- *   Claim           — professional claims (outbound)
- *   ClaimResponse   — adjudication results (inbound)
- *   Encounter       — visit/encounter records
- *   Condition       — diagnoses (ICD-10)
- *   Procedure       — procedures (CPT)
- *   ExplanationOfBenefit — ERA/EOB data
+ *   Patient          - demographics, insurance
+ *   Practitioner     - provider directory
+ *   Coverage         - insurance coverage
+ *   Claim            - professional claims (outbound)
+ *   ClaimResponse    - adjudication results (inbound)
+ *   Encounter        - visit/encounter records
+ *   Condition        - diagnoses (ICD-10)
+ *   Procedure        - procedures (CPT)
+ *   ExplanationOfBenefit  - ERA/EOB data
  */
 
 const https = require('https');

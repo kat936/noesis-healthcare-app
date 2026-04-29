@@ -1,5 +1,5 @@
 /**
- * Noesis.io Health — Redis Client
+ * Noesis.io Health  - Redis Client
  * © 2026 Athena Core Technologies
  *
  * Shared Redis connection used for:
@@ -8,7 +8,7 @@
  *   - NPI/FDA response caching
  *   - Token blacklist (logout)
  *
- * Falls back gracefully when REDIS_URL is not set —
+ * Falls back gracefully when REDIS_URL is not set  -
  * rate limiting and caching continue in-memory (development only).
  */
 
@@ -17,11 +17,11 @@ let available = false;
 
 /**
  * Initialize Redis. Called once at server startup.
- * Non-blocking — server starts even if Redis is down.
+ * Non-blocking  - server starts even if Redis is down.
  */
 async function initRedis() {
   if (!process.env.REDIS_URL) {
-    console.warn('⚠ REDIS_URL not set — running without Redis (in-memory rate limiting, not for production)');
+    console.warn('⚠ REDIS_URL not set  - running without Redis (in-memory rate limiting, not for production)');
     return;
   }
 
@@ -53,7 +53,7 @@ async function initRedis() {
     available = true;
     console.log('✓ Redis connection verified');
   } catch (err) {
-    console.warn('⚠ Redis unavailable — falling back to in-memory mode:', err.message);
+    console.warn('⚠ Redis unavailable  - falling back to in-memory mode:', err.message);
     client = null;
     available = false;
   }

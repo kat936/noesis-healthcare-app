@@ -15,7 +15,7 @@ const router = express.Router();
 router.get(
   '/compliance',
   authenticate,
-  requirePlan('professional', 'enterprise'),
+  requirePlan('group', 'enterprise'),
   apiLimiter,
   (req, res) => {
     try {
@@ -59,7 +59,7 @@ router.get(
 router.post(
   '/validate-claim',
   authenticate,
-  requirePlan('professional', 'enterprise'),
+  requirePlan('group', 'enterprise'),
   apiLimiter,
   async (req, res) => {
     try {
@@ -100,7 +100,7 @@ router.post(
 router.get(
   '/rules',
   authenticate,
-  requirePlan('professional', 'enterprise'),
+  requirePlan('group', 'enterprise'),
   apiLimiter,
   (req, res) => {
     try {

@@ -1,0 +1,28 @@
+{
+  "appId": "com.athenacore.noesishealth",
+  "appName": "Noesis Health",
+  "webDir": "build",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "scrollEnabled": true,
+    "allowsLinkPreview": false,
+    "handleApplicationNotifications": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f172a",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashImmersive": true
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}
