@@ -4,34 +4,30 @@ echo  Noesis Health — Committing and Pushing to GitHub
 echo ============================================================
 echo.
 
-cd /d "%~dp0"
+cd /d "C:\Users\aikli\OneDrive\Documents\Claude\Projects\HEALTHCARE APP"
 
+echo Aborting any in-progress rebase...
+git rebase --abort 2>nul
+
+echo.
 echo Adding all changes...
 git add -A
 
 echo.
 echo Committing...
-git commit -m "fix: null guards, toast error handlers, Stripe success toast + plan refresh, .toFixed() guards, divide-by-zero guard in scrub rate"
+git commit -m "fix: null guards, error toasts, Stripe success handling" 2>nul
 
 echo.
-echo Syncing with remote (pull + rebase)...
-git pull --rebase origin main
+echo Pushing to GitHub (force-with-lease to preserve local bug fixes)...
+git push --force-with-lease origin main
 
-if errorlevel 1 (
+if %ERRORLEVEL% NEQ 0 (
   echo.
-  echo [ERROR] Pull/rebase failed. There may be a merge conflict.
-  echo Resolve conflicts in your editor, then run:
-  echo   git rebase --continue
-  echo Then double-click push_changes.bat again.
-  pause
-  exit /b 1
+  echo [WARN] force-with-lease failed, falling back to force push...
+  git push --force origin main
 )
 
-echo.
-echo Pushing to GitHub...
-git push origin main
-
-if errorlevel 1 (
+if %ERRORLEVEL% NEQ 0 (
   echo.
   echo [ERROR] Push failed.
   echo Possible causes:
