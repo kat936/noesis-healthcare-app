@@ -11,7 +11,7 @@ git add -A
 
 echo.
 echo Committing...
-git commit -m "feat: GuardrailsModule HIPAA compliance+rules+validator, live notification bell, GrowthEngine live data, Dashboard action items, Analytics Pre-Check Intel tab, full light/dark mode, PreCheck denial engine, iOS package, toast system, CSV export"
+git commit -m "fix+feat: surgical null safety (denials/scrub/AR-aging/analytics), real legal docs (5), IntegrationStatusModule live+test, claim clearinghouse dispatch, LegalSection error state, ConsentGate real docs, RefreshCw icon, proof endpoint wiring"
 
 echo.
 echo Pushing to GitHub...
