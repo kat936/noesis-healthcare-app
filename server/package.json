@@ -12,6 +12,7 @@
     "db:migrate": "node db/migrate.js"
   },
   "dependencies": {
+    "@sentry/node": "^7.120.4",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

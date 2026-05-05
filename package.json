@@ -17,8 +17,9 @@
     "server:start": "cd server && npm start"
   },
   "dependencies": {
-    "@capacitor/browser": "^6.0.3",
-    "@capacitor/filesystem": "^6.0.3",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/filesystem": "^8.1.2",
+    "@sentry/react": "^7.120.4",
     "decimal.js": "^10.4.3",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
@@ -26,10 +27,10 @@
     "recharts": "^2.13.0"
   },
   "devDependencies": {
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/cli": "^6.1.2",
-    "@capacitor/core": "^6.1.2",
-    "@capacitor/ios": "^6.1.2",
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",

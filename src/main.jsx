@@ -10,8 +10,15 @@
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import './index.css';
 import NoesisApp from '../noesis-health-app.jsx';
+
+// Sentry init  - safe no-op if VITE_SENTRY_DSN is unset (local dev)
+Sentry.init({
+  dsn:         import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.MODE,
+});
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
