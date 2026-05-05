@@ -140,7 +140,7 @@ class StrategyEngine {
       auditTrail,
       timestamp: auditTrail.computedAt,
       engineVersion: RULE_VERSION,
-      // Notice to consumers: this engine is decision-support, not advisory.
+      // Notice to consumers: this engine emits decision-support output only.
       decisionScope: 'analytical',
       autonomy:      'none',
     };

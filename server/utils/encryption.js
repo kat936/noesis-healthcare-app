@@ -107,7 +107,7 @@ function decryptPHI(encryptedValue) {
 function encryptFields(obj, fields) {
   const result = { ...obj };
   for (const field of fields) {
-    if (result[field] != null) {
+    if (result[field] !== null && result[field] !== undefined) {
       result[field] = encryptPHI(String(result[field]));
     }
   }
@@ -124,7 +124,7 @@ function encryptFields(obj, fields) {
 function decryptFields(obj, fields) {
   const result = { ...obj };
   for (const field of fields) {
-    if (result[field] != null) {
+    if (result[field] !== null && result[field] !== undefined) {
       try {
         result[field] = decryptPHI(result[field]);
       } catch {

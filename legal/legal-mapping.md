@@ -59,7 +59,7 @@ This directory contains the following legal documents:
 | **Real Payer API Integration** | Not implemented | Eligibility responses are mocked; not calling real payer APIs |
 | **Data Retention Policies** | No persistent data store | Data retention policy is: "lost immediately on server restart" |
 | **SLA Commitments** | No SLA infrastructure | No uptime monitoring, no SLA guarantees, no guaranteed response times |
-| **Enterprise Security Audit** | No audit completed | Not HIPAA-certified; no SOC 2 audit; no professional security assessment |
+| **Enterprise Security Audit** | No audit completed | not HIPAA-certified; no SOC 2 audit; no professional security assessment |
 | **GDPR Compliance** | Not applicable | No EU operations; no GDPR data processing |
 | **State Medical Board Licensing** | Not required | Software tool, not medical practice; licensing not applicable |
 | **AI/ML Disclosures** | Strategy Engine is rules-based, not ML | Strategy Engine uses deterministic rules; no machine learning |

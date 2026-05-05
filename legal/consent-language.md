@@ -55,7 +55,7 @@ This Service is NOT:
 • An emergency medical service
 • A substitute for licensed physicians or healthcare professionals
 • A guarantee that claims will be approved or denied
-• HIPAA-certified or secure for Protected Health Information (PHI)
+• NOT HIPAA-certified or secure for Protected Health Information (PHI)
 
 The Strategy Engine (claims scoring) is:
 • Rules-based, not artificial intelligence
