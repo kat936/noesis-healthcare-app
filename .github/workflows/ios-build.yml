@@ -46,25 +46,11 @@ jobs:
           if [ ! -f "ios/App/Podfile" ]; then
             echo "iOS scaffold incomplete (no Podfile) — recreating"
             mkdir -p /tmp/ios-preserve
-            [ -f "ios/App/App.entitlements" ] && cp "ios/App/App.entitlements" /tmp/ios-preserve/ || true
             [ -f "ios/SUBMISSION.md" ] && cp "ios/SUBMISSION.md" /tmp/ios-preserve/ || true
             rm -rf ios
             npx cap add ios
-            [ -f "/tmp/ios-preserve/App.entitlements" ] && cp /tmp/ios-preserve/App.entitlements ios/App/App.entitlements || true
             [ -f "/tmp/ios-preserve/SUBMISSION.md" ] && cp /tmp/ios-preserve/SUBMISSION.md ios/SUBMISSION.md || true
-            echo "iOS scaffold recreated; entitlements/docs restored"
-          fi
-
-      - name: Set entitlements for App Store distribution
-        # The preserved App.entitlements has aps-environment=development from
-        # the Xcode template default. App Store provisioning profiles require
-        # aps-environment=production. Flip it for the Release archive.
-        run: |
-          set -e
-          if [ -f "ios/App/App.entitlements" ]; then
-            plutil -replace aps-environment -string production ios/App/App.entitlements
-            echo "aps-environment set to production"
-            plutil -p ios/App/App.entitlements | head -20
+            echo "iOS scaffold recreated with Capacitor default entitlements"
           fi
 
       - name: Sync Capacitor with web build
@@ -169,13 +155,19 @@ jobs:
           set -o pipefail
           cd ios/App
           ARCHIVE_PATH=$RUNNER_TEMP/App.xcarchive
+          XCODEBUILD_LOG=$RUNNER_TEMP/xcodebuild-archive.log
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -archivePath "$ARCHIVE_PATH" \
             -destination 'generic/platform=iOS' \
-            clean archive
+            clean archive 2>&1 | tee "$XCODEBUILD_LOG"
+          BUILD_RC=${PIPESTATUS[0]}
+          # Always copy the entitlements file alongside the log for diagnostics
+          [ -f "App/App.entitlements" ] && cp App/App.entitlements $RUNNER_TEMP/ || true
+          [ -f "App/Info.plist" ] && cp App/Info.plist $RUNNER_TEMP/ || true
+          exit $BUILD_RC
 
       - name: Export IPA
         env:
@@ -232,6 +224,17 @@ jobs:
             --file "$IPA_PATH" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+
+      - name: Upload diagnostic log on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-diagnostics
+          path: |
+            ${{ runner.temp }}/xcodebuild-archive.log
+            ${{ runner.temp }}/App.entitlements
+            ${{ runner.temp }}/Info.plist
+          if-no-files-found: warn
 
       - name: Upload IPA artifact
         if: always()
