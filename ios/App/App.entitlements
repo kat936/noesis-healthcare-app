@@ -7,7 +7,7 @@
          Capabilities are also enabled in the Apple Developer portal for
          the App ID com.athenacore.noesishealth. -->
     <key>aps-environment</key>
-    <string>development</string>
+    <string>production</string>
 
     <!-- ── Associated Domains ───────────────────────────────────────────
          Universal links for password manager autofill and deep linking
