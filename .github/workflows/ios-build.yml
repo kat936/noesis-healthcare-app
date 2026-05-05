@@ -42,8 +42,17 @@ jobs:
 
       - name: Add iOS platform
         run: |
-          if [ ! -d "ios" ]; then
+          # Detect incomplete scaffold (no Podfile = cap add never finished)
+          if [ ! -f "ios/App/Podfile" ]; then
+            echo "iOS scaffold incomplete (no Podfile) — recreating"
+            mkdir -p /tmp/ios-preserve
+            [ -f "ios/App/App.entitlements" ] && cp "ios/App/App.entitlements" /tmp/ios-preserve/ || true
+            [ -f "ios/SUBMISSION.md" ] && cp "ios/SUBMISSION.md" /tmp/ios-preserve/ || true
+            rm -rf ios
             npx cap add ios
+            [ -f "/tmp/ios-preserve/App.entitlements" ] && cp /tmp/ios-preserve/App.entitlements ios/App/App.entitlements || true
+            [ -f "/tmp/ios-preserve/SUBMISSION.md" ] && cp /tmp/ios-preserve/SUBMISSION.md ios/SUBMISSION.md || true
+            echo "iOS scaffold recreated; entitlements/docs restored"
           fi
 
       - name: Sync Capacitor with web build
