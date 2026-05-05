@@ -253,7 +253,7 @@ const validateInput = (value, type) => {
 
 const sanitizeInput = (input) => {
   if (!input) return '';
-  return String(input).replace(/[<>\"'&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '&': '&amp;' }[c])).slice(0, 500);
+  return String(input).replace(/[<>"'&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '&': '&amp;' }[c])).slice(0, 500);
 };
 
 const maskPHI = (value, isMasked, type = 'name') => {
@@ -2627,7 +2627,7 @@ const AnalyticsModule = ({ token, plan, userRole }) => {
             <KPICard icon={FileCheck} label="Claims This Month" value={analytics?.claimsThisMonth} />
             <KPICard icon={TrendingUp} label="Approval Rate" value={analytics?.approvalRate + '%'} />
             <KPICard icon={Clock} label="Avg Days Processing" value={analytics?.avgDaysProcessing} />
-            <KPICard icon={TrendingDown} label="Denial Rate" value={analytics?.denialRate != null ? analytics.denialRate.toFixed(1) + '%' : '—'} />
+            <KPICard icon={TrendingDown} label="Denial Rate" value={analytics?.denialRate !== null && analytics?.denialRate !== undefined ? analytics.denialRate.toFixed(1) + '%' : '—'} />
           </div>
 
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
@@ -3198,6 +3198,7 @@ const generateRolePermissions = () => {
 const SecurityCenterModule = ({ plan, isMasked, setIsMasked }) => {
   if (plan !== 'enterprise') return <LockedModule moduleName="Security Center" requiredPlan="Enterprise - contact sales" />;
 
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [minimumNecessary, setMinimumNecessary] = useState(true);
   const [autoLock, setAutoLock] = useState(true);
@@ -4558,7 +4559,7 @@ const SessionTimeoutWarning = ({ secondsRemaining, onStayLoggedIn, onLogout }) =
 const PricingPage = ({ token, currentPlan, onUpgrade }) => {
   const toast = useToast();
   const [loading, setLoading] = useState(null);
-  const [interval, setInterval] = useState('monthly');
+  const [billingInterval, setBillingInterval] = useState('monthly');
   const [error, setError] = useState('');
 
   const ANNUAL_DISCOUNT = 0.17; // ~2 months free
@@ -4567,7 +4568,7 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
     if (plan === 'enterprise') return { main: 'Custom', sub: 'Contact sales for enterprise pricing' };
     const monthly = plan === 'solo' ? 299 : 799;
     const annual  = Math.round(monthly * (1 - ANNUAL_DISCOUNT));
-    return interval === 'monthly'
+    return billingInterval === 'monthly'
       ? { main: `$${monthly}`, sub: '/month, billed monthly' }
       : { main: `$${annual}`, sub: `/month, billed $${annual * 12}/year` };
   };
@@ -4588,7 +4589,7 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
     setError('');
     setLoading(plan);
     try {
-      const result = await api.createCheckoutSession(token, plan, interval);
+      const result = await api.createCheckoutSession(token, plan, billingInterval);
       if (result.url) {
         // iOS Capacitor: must open Stripe in external browser, NOT the WKWebView
         if (window.Capacitor?.isNativePlatform?.()) {
@@ -4600,7 +4601,7 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
           window.location.href = result.url;
         }
       } else if (result.demo) {
-        toast.info(`Demo mode — Stripe not configured. In production this opens Stripe Checkout for the ${plan} plan (${interval}).`);
+        toast.info(`Demo mode — Stripe not configured. In production this opens Stripe Checkout for the ${plan} plan (${billingInterval}).`);
       }
     } catch (err) {
       setError(err.message || 'Failed to start checkout');
@@ -4622,14 +4623,14 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
         {/* Billing interval toggle */}
         <div className="mt-6 inline-flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-xl p-1">
           <button
-            onClick={() => setInterval('monthly')}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${interval === 'monthly' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => setBillingInterval('monthly')}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${billingInterval === 'monthly' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-white'}`}
           >
             Monthly
           </button>
           <button
-            onClick={() => setInterval('annual')}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${interval === 'annual' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => setBillingInterval('annual')}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${billingInterval === 'annual' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-white'}`}
           >
             Annual
             <span className="bg-green-500/20 text-green-300 text-xs px-2 py-0.5 rounded-full font-bold">Save 17%</span>
@@ -4822,7 +4823,6 @@ function NoesisAppInner() {
         toast.success('🎉 Subscription activated!');
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogin = (result) => {
