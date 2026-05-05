@@ -1,0 +1,221 @@
+name: Build & Submit iOS App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode (16.x)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Print Xcode and SDK versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcode-select -p
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
+
+      - name: Add iOS platform
+        run: |
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+
+      - name: Sync Capacitor with web build
+        run: npx cap sync ios
+
+      - name: Regenerate icons & splash from Noesis emblem
+        # Apple Review (Guideline 2.3.8) rejects builds whose icons
+        # appear to be the default Capacitor placeholder. We regenerate
+        # flat opaque PNGs from `noesis-emblem-source.png` and inject the
+        # 1024x1024 master into ios/App/App/Assets.xcassets so the binary
+        # ships the Noesis mark, not the blue-X placeholder.
+        run: |
+          npm install --no-save sharp
+          node scripts/regenerate-icons.mjs
+          node scripts/inject-ios-icons.mjs
+
+      - name: Install Fastlane
+        run: |
+          cd ios/App
+          sudo gem install fastlane -NV
+
+      - name: Import signing certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -e
+          CERT_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" > $RUNNER_TEMP/cert.b64
+          tr -d '[:space:]' < $RUNNER_TEMP/cert.b64 > $RUNNER_TEMP/cert.clean.b64
+          base64 --decode -i $RUNNER_TEMP/cert.clean.b64 -o $CERT_PATH
+          echo "Decoded .p12 size: $(wc -c < $CERT_PATH) bytes"
+
+          if ! openssl pkcs12 -in $CERT_PATH -noout -passin "pass:$P12_PASSWORD" 2>&1; then
+            echo "openssl: .p12 password FAILED"
+            exit 1
+          fi
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $CERT_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PP_DIR=$HOME/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$PP_DIR"
+          PP_PATH=$RUNNER_TEMP/profile.mobileprovision
+          printf '%s' "$PROVISIONING_PROFILE_BASE64" | tr -d '[:space:]' | base64 --decode -o $PP_PATH
+          PP_UUID=$(security cms -D -i $PP_PATH | plutil -extract UUID raw -)
+          echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
+          echo "Installed profile UUID: $PP_UUID"
+          cp $PP_PATH "$PP_DIR/$PP_UUID.mobileprovision"
+
+      - name: Bump CFBundleVersion to GITHUB_RUN_NUMBER
+        # Capacitor regenerates the iOS project with build number 1
+        # every run, which TestFlight silently rejects as a duplicate.
+        # Setting CFBundleVersion to the workflow run number guarantees
+        # a monotonically-increasing unique build number across runs.
+        run: |
+          set -e
+          cd ios/App
+          xcrun agvtool new-version -all "$GITHUB_RUN_NUMBER"
+          echo "Bumped CFBundleVersion to $GITHUB_RUN_NUMBER"
+
+      - name: Configure App target signing (only App, not Pods)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -e
+          cd ios/App
+          sudo gem install xcodeproj -NV
+          ruby <<'RUBY'
+          require 'xcodeproj'
+          project_path = 'App.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          team_id = ENV['APPLE_TEAM_ID']
+          profile_name = 'Noesis Health App Store'
+          project.targets.each do |target|
+            next unless target.name == 'App'
+            target.build_configurations.each do |config|
+              config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+              config.build_settings['DEVELOPMENT_TEAM'] = team_id
+              config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = profile_name
+              config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
+              config.build_settings['CODE_SIGN_IDENTITY[sdk=iphoneos*]'] = 'Apple Distribution'
+              puts "Configured #{target.name} / #{config.name}"
+            end
+          end
+          project.save
+          RUBY
+
+      - name: Build iOS archive
+        run: |
+          set -o pipefail
+          cd ios/App
+          ARCHIVE_PATH=$RUNNER_TEMP/App.xcarchive
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$ARCHIVE_PATH" \
+            -destination 'generic/platform=iOS' \
+            clean archive
+
+      - name: Export IPA
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          ARCHIVE_PATH=$RUNNER_TEMP/App.xcarchive
+          EXPORT_PATH=$RUNNER_TEMP/ipa
+          EXPORT_OPTS=$RUNNER_TEMP/ExportOptions.plist
+          cat > $EXPORT_OPTS <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.athenacore.noesishealth</key>
+              <string>Noesis Health App Store</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$EXPORT_OPTS"
+          ls -la "$EXPORT_PATH"
+
+      - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          set -o pipefail
+          mkdir -p $HOME/private_keys
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | tr -d '[:space:]' | base64 --decode -o $HOME/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
+          IPA_PATH=$(ls $RUNNER_TEMP/ipa/*.ipa | head -n 1)
+          echo "Uploading IPA: $IPA_PATH"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ${{ runner.temp }}/ipa/*.ipa
+          if-no-files-found: warn
