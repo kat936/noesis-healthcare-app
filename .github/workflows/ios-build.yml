@@ -55,6 +55,18 @@ jobs:
             echo "iOS scaffold recreated; entitlements/docs restored"
           fi
 
+      - name: Set entitlements for App Store distribution
+        # The preserved App.entitlements has aps-environment=development from
+        # the Xcode template default. App Store provisioning profiles require
+        # aps-environment=production. Flip it for the Release archive.
+        run: |
+          set -e
+          if [ -f "ios/App/App.entitlements" ]; then
+            plutil -replace aps-environment -string production ios/App/App.entitlements
+            echo "aps-environment set to production"
+            plutil -p ios/App/App.entitlements | head -20
+          fi
+
       - name: Sync Capacitor with web build
         run: npx cap sync ios
 
