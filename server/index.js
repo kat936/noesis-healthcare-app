@@ -13,10 +13,21 @@
 const express = require('express');
 const helmet  = require('helmet');
 const cors    = require('cors');
+const Sentry  = require('@sentry/node');
 require('dotenv').config();
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
+
+// ── Sentry init ─────────────────────────────────────────────────────────────
+// Must be called before any other middleware so requestHandler captures
+// every request from the very first hop. DSN is read from env; if absent,
+// Sentry.init() is a no-op (safe in dev / unit tests).
+Sentry.init({
+  dsn:         process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+});
+app.use(Sentry.Handlers.requestHandler());
 
 // ── Security headers ────────────────────────────────────────────────────────
 app.use(helmet({
@@ -137,6 +148,9 @@ app.use('/api/v1/hipaa',        require('./routes/hipaa'));
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', code: 'ROUTE_NOT_FOUND', path: req.path, method: req.method });
 });
+
+// ── Sentry error handler  - must come before any other error middleware ─────
+app.use(Sentry.Handlers.errorHandler());
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
