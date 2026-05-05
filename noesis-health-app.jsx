@@ -4763,6 +4763,33 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
 };
 
 // ============ MAIN APP ============
+// ============ BETA / PHI BANNER ============
+// Dismissible top-of-dashboard notice gated by VITE_HEALTH_BETA_MODE.
+// Default ON until the BAA is on file; flip to "false" in env to hide.
+const BetaBanner = () => {
+  const enabled = String(import.meta.env.VITE_HEALTH_BETA_MODE ?? 'true').toLowerCase() !== 'false';
+  const [dismissed, setDismissed] = useState(false);
+  if (!enabled || dismissed) return null;
+  return (
+    <div className="bg-amber-500/15 border-b border-amber-500/40 px-6 py-2.5 flex items-center justify-between gap-4" role="status">
+      <div className="flex items-center gap-2 text-amber-200 text-xs sm:text-sm">
+        <AlertTriangle size={16} className="shrink-0" />
+        <p className="leading-snug">
+          <span className="font-semibold">Beta version.</span>{' '}
+          Do not submit real Protected Health Information until BAA is on file.
+        </p>
+      </div>
+      <button
+        onClick={() => setDismissed(true)}
+        className="text-amber-300/80 hover:text-amber-100 transition-colors shrink-0"
+        aria-label="Dismiss beta notice"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  );
+};
+
 function NoesisAppInner() {
   const toast = useToast();
   const [authState, setAuthState] = useState({ token: null, user: null, expiresIn: 0 });
@@ -5007,6 +5034,7 @@ function NoesisAppInner() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <BetaBanner />
         {/* Header */}
         <div className="bg-slate-800/50 border-b border-slate-700/50 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
