@@ -923,7 +923,7 @@ const LoginScreen = ({ onLogin, error }) => {
             </button>
           </form>
 
-          <p className="text-slate-400 text-xs text-center mt-6">Demo: Use any email and password (8+ chars)</p>
+          <p className="text-slate-400 text-xs text-center mt-6">Sign in to access your HIPAA-secured account.</p>
         </div>
       </div>
     </div>
