@@ -243,11 +243,24 @@ jobs:
           printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | tr -d '[:space:]' | base64 --decode -o $HOME/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
           IPA_PATH=$(ls $RUNNER_TEMP/ipa/*.ipa | head -n 1)
           echo "Uploading IPA: $IPA_PATH"
+          # altool exits 0 even when authentication fails (it just prints
+          # the 401 to stdout). Capture the output, exit non-zero on any
+          # NOT_AUTHORIZED / authentication-failed signature, so the
+          # workflow fails loud instead of silently reporting success on
+          # a build that never reached App Store Connect.
+          UPLOAD_LOG=$RUNNER_TEMP/altool-upload.log
           xcrun altool --upload-app \
             --type ios \
             --file "$IPA_PATH" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID" 2>&1 | tee "$UPLOAD_LOG"
+          if grep -qE 'NOT_AUTHORIZED|failed to authenticate|status code 401|Unable to authenticate' "$UPLOAD_LOG"; then
+            echo "::error title=TestFlight upload failed::altool reported an authentication error (HTTP 401). The App Store Connect API key/issuer/p8 secret is invalid or expired. Regenerate the key in App Store Connect and update the APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_API_ISSUER_ID, and APP_STORE_CONNECT_API_KEY_BASE64 repository secrets."
+            exit 1
+          fi
+          if ! grep -qE 'No errors uploading|Package Summary|UPLOAD SUCCEEDED' "$UPLOAD_LOG"; then
+            echo "::warning title=TestFlight upload may have failed::altool exit was 0 but no success marker was detected in the log. Check the build under TestFlight in App Store Connect before assuming the upload landed."
+          fi
 
       - name: Upload diagnostic log on failure
         if: always()
