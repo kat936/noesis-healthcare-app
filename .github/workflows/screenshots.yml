@@ -26,16 +26,6 @@ on:
         description: 'Git ref to build from (default: current branch)'
         required: false
         default: ''
-  # Auto-fire on any push to the screenshots-tooling feature branch so the
-  # first push lands an artifact without waiting for the file to merge to
-  # main (workflow_dispatch via the API requires the file to exist on the
-  # default branch).
-  push:
-    branches:
-      - 'feat/app-store-screenshots-tooling'
-    paths:
-      - 'scripts/screenshots/**'
-      - '.github/workflows/screenshots.yml'
 
 permissions:
   contents: read
@@ -52,20 +42,23 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Setup Node.js
+        # Match the iOS build runner's Node version (Capacitor 8 minimum).
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install npm dependencies
         run: npm ci
 
       - name: Build web bundle
-        # We don't point at a real backend; Playwright will mock every
-        # /api/v1/* call. The baked-in URL just needs to be syntactically
-        # valid so apiFetch() doesn't throw at build time.
+        # Playwright mocks every /api/v1/* call AND the bundle's
+        # IOS_DEMO_ONLY guard returns canned data even without intercepts
+        # (defense in depth). The baked-in URL just needs to be
+        # syntactically valid so apiFetch's URL constructor doesn't throw
+        # at module load.
         env:
-          REACT_APP_API_URL: http://localhost:3001/api/v1
+          REACT_APP_API_URL: https://demo.invalid/api/v1
           REACT_APP_VERSION: 1.0.0-screenshots
         run: npm run build
 

@@ -14,7 +14,286 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 // ============ API LAYER ============
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api/v1';
 
+// IOS_DEMO_ONLY: when running inside the Capacitor iOS shell (App Review,
+// TestFlight pre-launch, sales demo), short-circuit every network call and
+// auth flow so the app launches straight into a populated dashboard with
+// fake data. No real PHI, no backend dependency, no auth required.
+//
+// Web flow is unchanged: in a browser window.Capacitor is undefined, so
+// IOS_DEMO_ONLY evaluates false and apiFetch behaves normally.
+const IOS_DEMO_ONLY = typeof window !== 'undefined'
+  && !!window.Capacitor?.isNativePlatform?.();
+
+const DEMO_TOKEN = 'demo-ios-only-token';
+const DEMO_USER = {
+  id: 'demo-user-001',
+  email: 'reviewer@noesis.io',
+  name: 'App Review Demo',
+  role: 'Provider Staff',
+  plan: 'enterprise',
+  organization: 'Noesis Health Demo Clinic',
+};
+
+// Realistic but fake sample data. Patient names are obvious placeholders
+// (John Doe, Jane Smith, etc). CPT/ICD codes are valid but the records
+// are not derived from any real patient encounter.
+const SAMPLE_CLAIMS = [
+  { id: 'CLM-1001', patient: 'John Doe', provider: 'Dr. Aaron Levy', payer: 'BlueCross', amount: 245.00, status: 'Paid', days: 5, cptCode: '99213', icd10: 'J20.9', serviceDate: '2026-04-12' },
+  { id: 'CLM-1002', patient: 'Jane Smith', provider: 'Dr. Aaron Levy', payer: 'Aetna', amount: 489.50, status: 'In Review', days: 2, cptCode: '99214', icd10: 'I10', serviceDate: '2026-04-28' },
+  { id: 'CLM-1003', patient: 'Robert Johnson', provider: 'Dr. Maya Patel', payer: 'UnitedHealth', amount: 178.25, status: 'Approved', days: 1, cptCode: '99203', icd10: 'E11.9', serviceDate: '2026-05-01' },
+  { id: 'CLM-1004', patient: 'Maria Garcia', provider: 'Dr. Maya Patel', payer: 'Cigna', amount: 312.75, status: 'Submitted', days: 0, cptCode: '99213', icd10: 'M54.5', serviceDate: '2026-05-04' },
+  { id: 'CLM-1005', patient: 'James Wilson', provider: 'Dr. Aaron Levy', payer: 'Medicare', amount: 156.00, status: 'Denied', days: 9, cptCode: '99212', icd10: 'R51', serviceDate: '2026-04-22' },
+  { id: 'CLM-1006', patient: 'Linda Brown', provider: 'Dr. Aaron Levy', payer: 'Medicaid', amount: 402.40, status: 'Paid', days: 14, cptCode: '99214', icd10: 'F41.1', serviceDate: '2026-04-18' },
+  { id: 'CLM-1007', patient: 'David Miller', provider: 'Dr. Maya Patel', payer: 'BlueCross', amount: 521.00, status: 'Submitted', days: 0, cptCode: '99204', icd10: 'K21.9', serviceDate: '2026-05-05' },
+];
+
+const SAMPLE_DENIALS = [
+  { id: 'DEN-2001', claimId: 'CLM-1005', patient: 'James Wilson', payer: 'Medicare', amount: 156.00, reason: 'CO-16 — Lacks information for adjudication', code: 'CO-16', date: '2026-05-01', appealable: true },
+  { id: 'DEN-2002', claimId: 'CLM-0982', patient: 'Patricia Davis', payer: 'Aetna', amount: 89.50, reason: 'CO-29 — Time limit for filing has expired', code: 'CO-29', date: '2026-04-25', appealable: false },
+  { id: 'DEN-2003', claimId: 'CLM-0974', patient: 'Christopher Lee', payer: 'UnitedHealth', amount: 643.20, reason: 'CO-50 — These services are non-covered', code: 'CO-50', date: '2026-04-22', appealable: true },
+];
+
+const SAMPLE_PRIOR_AUTHS = [
+  { id: 'PA-3001', patient: 'Jane Smith', procedure: 'MRI Lumbar Spine without contrast', cptCode: '72148', payer: 'Aetna', status: 'Approved', submittedAt: '2026-04-29', authNumber: 'AUTH-A8842' },
+  { id: 'PA-3002', patient: 'Robert Johnson', procedure: 'Sleep Study (Polysomnography)', cptCode: '95810', payer: 'UnitedHealth', status: 'Pending', submittedAt: '2026-05-02', authNumber: null },
+  { id: 'PA-3003', patient: 'Linda Brown', procedure: 'Cognitive Behavioral Therapy', cptCode: '90834', payer: 'Medicaid', status: 'Approved', submittedAt: '2026-04-15', authNumber: 'AUTH-M2210' },
+];
+
+const SAMPLE_ELIGIBILITY = {
+  active: true,
+  memberId: 'XJB123456789',
+  planName: 'BlueCross PPO Gold',
+  payerName: 'BlueCross BlueShield',
+  effectiveDate: '2026-01-01',
+  terminationDate: null,
+  copay: { primaryCare: 25, specialist: 50, urgentCare: 75 },
+  deductible: { individual: 1500, met: 875, remaining: 625 },
+  outOfPocket: { individual: 6500, met: 1240, remaining: 5260 },
+  coverageDetails: 'In-network preventive care covered at 100%. Specialist visits subject to copay after deductible.',
+};
+
+const SAMPLE_AGING = {
+  current: 18420.50,
+  d31_60: 6240.25,
+  d61_90: 2150.00,
+  d91_120: 980.40,
+  d120_plus: 540.00,
+  total: 28331.15,
+  buckets: [
+    { range: '0-30', amount: 18420.50, count: 47 },
+    { range: '31-60', amount: 6240.25, count: 18 },
+    { range: '61-90', amount: 2150.00, count: 7 },
+    { range: '91-120', amount: 980.40, count: 3 },
+    { range: '120+', amount: 540.00, count: 2 },
+  ],
+};
+
+const SAMPLE_ERA = [
+  { id: 'ERA-9001', payer: 'BlueCross', checkNumber: 'EFT-882041', amount: 4820.50, postedAt: '2026-05-03', claimsCount: 12 },
+  { id: 'ERA-9002', payer: 'Aetna', checkNumber: 'EFT-771202', amount: 2145.00, postedAt: '2026-05-02', claimsCount: 6 },
+  { id: 'ERA-9003', payer: 'Medicare', checkNumber: 'EFT-110558', amount: 6230.75, postedAt: '2026-04-30', claimsCount: 19 },
+];
+
+const SAMPLE_SCRUBBING = {
+  scrubbed: 142,
+  cleanRate: 0.94,
+  topErrors: [
+    { code: 'M76', description: 'Missing/incomplete diagnosis or condition', count: 4 },
+    { code: 'M51', description: 'Missing/incomplete/invalid procedure code', count: 3 },
+    { code: 'M119', description: 'Missing/incomplete NDC', count: 2 },
+  ],
+};
+
+const SAMPLE_ANALYTICS = {
+  totalRevenue: 184320.50,
+  totalClaims: 412,
+  cleanClaimRate: 0.94,
+  avgDaysToPay: 18.4,
+  denialRate: 0.06,
+  monthlyTrend: [
+    { month: 'Dec', revenue: 32100, claims: 78 },
+    { month: 'Jan', revenue: 28900, claims: 71 },
+    { month: 'Feb', revenue: 31250, claims: 74 },
+    { month: 'Mar', revenue: 30100, claims: 72 },
+    { month: 'Apr', revenue: 33820, claims: 81 },
+    { month: 'May', revenue: 28150, claims: 36 },
+  ],
+};
+
+const SAMPLE_CONVERSATIONS = [
+  { id: 'CV-001', participants: ['Provider Staff', 'BlueCross Rep'], lastMessage: 'Auth approved, see attached.', updatedAt: '2026-05-04T15:30:00Z', unread: 0 },
+  { id: 'CV-002', participants: ['Provider Staff', 'Aetna Rep'], lastMessage: 'Need additional clinical notes for CLM-1002.', updatedAt: '2026-05-04T10:12:00Z', unread: 2 },
+];
+
+const SAMPLE_MESSAGES = [
+  { id: 'MSG-001', conversationId: 'CV-002', senderId: 'aetna-rep-44', senderName: 'Aetna Rep', body: 'Need additional clinical notes for CLM-1002.', sentAt: '2026-05-04T10:12:00Z' },
+  { id: 'MSG-002', conversationId: 'CV-002', senderId: 'demo-user-001', senderName: 'You', body: 'Uploading the office visit note now.', sentAt: '2026-05-04T10:18:00Z' },
+];
+
+const SAMPLE_FRAUD_ALERTS = [
+  { id: 'FA-001', claimId: 'CLM-0901', riskScore: 0.87, flag: 'Duplicate billing pattern detected', reviewer: null, status: 'Pending Review' },
+  { id: 'FA-002', claimId: 'CLM-0892', riskScore: 0.62, flag: 'Provider NPI mismatch with credentialing record', reviewer: 'demo-user-001', status: 'In Review' },
+];
+
+const SAMPLE_NETWORK_PROVIDERS = [
+  { npi: '1234567890', name: 'Dr. Aaron Levy MD', specialty: 'Internal Medicine', city: 'Boston', state: 'MA', inNetwork: true, acceptingNew: true },
+  { npi: '1234567891', name: 'Dr. Maya Patel MD', specialty: 'Family Medicine', city: 'Boston', state: 'MA', inNetwork: true, acceptingNew: false },
+  { npi: '1234567892', name: 'Dr. Sarah Chen MD', specialty: 'Cardiology', city: 'Cambridge', state: 'MA', inNetwork: true, acceptingNew: true },
+];
+
+const SAMPLE_NETWORK_ADEQUACY = {
+  overallScore: 0.91,
+  specialtiesMet: 18,
+  specialtiesTotal: 20,
+  gaps: [
+    { specialty: 'Pediatric Endocrinology', driveTime: 47, threshold: 30 },
+    { specialty: 'Geriatric Psychiatry', driveTime: 62, threshold: 45 },
+  ],
+};
+
+const SAMPLE_CONTRACTS = [
+  { id: 'CT-001', payer: 'BlueCross BlueShield', effective: '2025-01-01', termination: '2026-12-31', feeScheduleVersion: '2026.1', autoRenew: true },
+  { id: 'CT-002', payer: 'Aetna', effective: '2024-07-01', termination: '2026-06-30', feeScheduleVersion: '2025.4', autoRenew: false },
+];
+
+const SAMPLE_PRECHECK_RESULT = {
+  decision: 'approve',
+  score: 92,
+  rules: [
+    { id: 'R-001', name: 'NPI active in PECOS', passed: true },
+    { id: 'R-002', name: 'CPT/ICD-10 cross-validation', passed: true },
+    { id: 'R-003', name: 'Modifier consistency', passed: true },
+    { id: 'R-004', name: 'Fee schedule alignment', passed: true },
+  ],
+  warnings: [],
+  estimatedReimbursement: 178.25,
+};
+
+const SAMPLE_PRECHECK_HISTORY = [
+  { id: 'PC-501', claimId: 'CLM-1003', decision: 'approve', score: 92, ranAt: '2026-05-01T14:22:00Z' },
+  { id: 'PC-502', claimId: 'CLM-1004', decision: 'review', score: 71, ranAt: '2026-05-04T09:11:00Z' },
+];
+
+const SAMPLE_FEE_SCHEDULE = {
+  cptCode: '99213',
+  description: 'Office or other outpatient visit, established patient, low MDM',
+  medicareAllowed: 89.45,
+  payerRates: [
+    { payer: 'BlueCross', rate: 124.30 },
+    { payer: 'Aetna', rate: 118.75 },
+    { payer: 'UnitedHealth', rate: 121.20 },
+  ],
+};
+
+const SAMPLE_GUARDRAIL_COMPLIANCE = {
+  overallScore: 0.96,
+  policies: [
+    { id: 'P-001', name: 'HIPAA Minimum Necessary', status: 'Compliant', lastChecked: '2026-05-04' },
+    { id: 'P-002', name: 'Audit Log Retention (7yr)', status: 'Compliant', lastChecked: '2026-05-04' },
+    { id: 'P-003', name: 'Encryption at rest (AES-256)', status: 'Compliant', lastChecked: '2026-05-04' },
+  ],
+};
+
+const SAMPLE_GUARDRAIL_RULES = {
+  rules: [
+    { id: 'GR-001', name: 'Block claims missing modifier 25 on E&M+procedure same day', enabled: true, category: 'Claim Validation' },
+    { id: 'GR-002', name: 'Flag NDC mismatched with CPT J-code', enabled: true, category: 'Pharmacy' },
+    { id: 'GR-003', name: 'Require referral for specialist evaluation', enabled: false, category: 'Authorization' },
+  ],
+};
+
+const SAMPLE_INTEGRATIONS = {
+  integrations: [
+    { name: 'NPI Registry', status: 'connected', lastChecked: '2026-05-04T18:00:00Z' },
+    { name: 'OpenFDA Drug Database', status: 'connected', lastChecked: '2026-05-04T18:00:00Z' },
+    { name: 'Stripe Billing', status: 'demo', lastChecked: '2026-05-04T18:00:00Z' },
+    { name: 'EDI 837P/835 Clearinghouse', status: 'demo', lastChecked: '2026-05-04T18:00:00Z' },
+    { name: 'Payer Eligibility 270/271', status: 'demo', lastChecked: '2026-05-04T18:00:00Z' },
+    { name: 'HL7 FHIR R4 EHR Connector', status: 'demo', lastChecked: '2026-05-04T18:00:00Z' },
+  ],
+};
+
+const SAMPLE_NPI = {
+  npi: '1234567890',
+  enumerationType: 'NPI-1',
+  basic: { firstName: 'Aaron', lastName: 'Levy', credential: 'MD', sole_proprietor: 'NO', gender: 'M', enumerationDate: '2010-04-15', lastUpdated: '2024-09-12', status: 'A' },
+  taxonomies: [{ code: '207R00000X', desc: 'Internal Medicine', primary: true, state: 'MA', license: 'MA-228841' }],
+  addresses: [{ purpose: 'LOCATION', city: 'Boston', state: 'MA', postal_code: '02115' }],
+  demo: true,
+};
+
+// Centralized demo response router. Used by apiFetch when IOS_DEMO_ONLY is
+// true so no method needs its own short-circuit. Path matching strips query
+// strings; method narrows GET vs POST/PUT for endpoints that accept both.
+function demoResponse(path, method) {
+  const cleanPath = path.split('?')[0];
+  const m = (method || 'GET').toUpperCase();
+
+  if (cleanPath === '/auth/login') return { token: DEMO_TOKEN, user: DEMO_USER };
+  if (cleanPath === '/auth/refresh') return { token: DEMO_TOKEN, user: DEMO_USER };
+
+  if (cleanPath === '/claims') {
+    if (m === 'POST') return { ok: true, demo: true, id: `CLM-${Date.now()}` };
+    return { data: SAMPLE_CLAIMS };
+  }
+  if (/^\/claims\/[^/]+\/score$/.test(cleanPath)) return { score: { value: 88, decision: 'approve', demo: true } };
+  if (cleanPath === '/scrubbing') return { data: SAMPLE_SCRUBBING };
+
+  if (cleanPath === '/billing/era') return { data: SAMPLE_ERA };
+  if (cleanPath === '/billing/aging') return { data: SAMPLE_AGING };
+  if (cleanPath === '/billing/analytics') return { data: SAMPLE_ANALYTICS };
+  if (cleanPath === '/billing/checkout') return { demo: true };
+
+  if (cleanPath === '/eligibility/verify') return SAMPLE_ELIGIBILITY;
+
+  if (cleanPath === '/authorizations') {
+    if (m === 'POST') return { ok: true, demo: true, id: `PA-${Date.now()}`, status: 'Submitted' };
+    return { data: SAMPLE_PRIOR_AUTHS };
+  }
+
+  if (cleanPath === '/messaging/conversations') {
+    if (m === 'POST') return { conversation: { id: `CV-${Date.now()}`, participants: ['You', 'Demo Recipient'], lastMessage: '', updatedAt: new Date().toISOString(), unread: 0 } };
+    return { conversations: SAMPLE_CONVERSATIONS };
+  }
+  if (/^\/messaging\/conversations\/[^/]+$/.test(cleanPath)) return { messages: SAMPLE_MESSAGES, conversation: SAMPLE_CONVERSATIONS[0] };
+  if (cleanPath === '/messaging/messages') return { ok: true, demo: true, id: `MSG-${Date.now()}` };
+
+  if (cleanPath === '/adjudication/queue') return { queue: SAMPLE_FRAUD_ALERTS };
+
+  if (cleanPath === '/network/providers') return { data: SAMPLE_NETWORK_PROVIDERS };
+  if (cleanPath === '/network/adequacy') return SAMPLE_NETWORK_ADEQUACY;
+
+  if (cleanPath === '/contracts') return { data: SAMPLE_CONTRACTS };
+
+  if (cleanPath === '/denials') return { data: SAMPLE_DENIALS };
+
+  if (cleanPath === '/precheck') return SAMPLE_PRECHECK_RESULT;
+  if (cleanPath === '/precheck/history') return SAMPLE_PRECHECK_HISTORY;
+  if (/^\/precheck\/fee-schedule\/.+$/.test(cleanPath)) return SAMPLE_FEE_SCHEDULE;
+
+  if (cleanPath === '/guardrails/compliance') return SAMPLE_GUARDRAIL_COMPLIANCE;
+  if (cleanPath === '/guardrails/rules') return SAMPLE_GUARDRAIL_RULES;
+  if (cleanPath === '/guardrails/validate-claim') return { valid: true, warnings: [], demo: true };
+  if (/^\/guardrails\/rules\/.+$/.test(cleanPath)) return { ok: true, demo: true };
+
+  if (cleanPath === '/integrations/status') return SAMPLE_INTEGRATIONS;
+  if (/^\/integrations\/proof\/.+$/.test(cleanPath)) return { ok: true, demo: true, source: 'iOS demo build', timestamp: new Date().toISOString() };
+  if (cleanPath === '/integrations/clearinghouse/submit') return { ok: true, demo: true, ackId: `ACK-${Date.now()}` };
+  if (/^\/integrations\/npi\/.+$/.test(cleanPath)) return SAMPLE_NPI;
+
+  if (/^\/legal\/.+$/.test(cleanPath)) return { content: 'Demo legal document content. Production text fetched from server.' };
+
+  return { data: [], demo: true };
+}
+
 async function apiFetch(path, token, options = {}) {
+  // iOS demo: never hit the network. Return canned data so every screen
+  // renders without backend access. Apple reviewers and TestFlight users
+  // see a fully populated app on launch.
+  if (IOS_DEMO_ONLY) {
+    return demoResponse(path, options.method);
+  }
+
   const headers = { 'Content-Type': 'application/json' };
   if (token) { headers['Authorization'] = `Bearer ${token}`; }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
@@ -4768,6 +5047,18 @@ const BetaBanner = () => {
   const enabled = String(import.meta.env.VITE_HEALTH_BETA_MODE ?? 'true').toLowerCase() !== 'false';
   const [dismissed, setDismissed] = useState(false);
   if (!enabled || dismissed) return null;
+  // iOS demo build: louder banner, no dismiss control, demo-specific copy.
+  if (IOS_DEMO_ONLY) {
+    return (
+      <div className="bg-amber-500/25 border-b-2 border-amber-500/60 px-6 py-3 flex items-center justify-center gap-3" role="status">
+        <AlertTriangle size={18} className="shrink-0 text-amber-200" />
+        <p className="text-amber-100 text-xs sm:text-sm font-medium leading-snug text-center">
+          <span className="font-bold">Demo build.</span>{' '}
+          All records shown are synthetic sample data. No real Protected Health Information.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="bg-amber-500/15 border-b border-amber-500/40 px-6 py-2.5 flex items-center justify-between gap-4" role="status">
       <div className="flex items-center gap-2 text-amber-200 text-xs sm:text-sm">
@@ -4790,12 +5081,19 @@ const BetaBanner = () => {
 
 function NoesisAppInner() {
   const toast = useToast();
-  const [authState, setAuthState] = useState({ token: null, user: null, expiresIn: 0 });
+  // iOS demo build: pre-populate auth + consents so the app launches straight
+  // into the Dashboard with no login or consent prompts. Apple App Review
+  // installs the IPA and taps the icon; they should immediately see the app.
+  const [authState, setAuthState] = useState(() => (
+    IOS_DEMO_ONLY
+      ? { token: DEMO_TOKEN, user: DEMO_USER, expiresIn: 3600 }
+      : { token: null, user: null, expiresIn: 0 }
+  ));
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isMasked, setIsMasked] = useState(false);
-  const [sessionExpiry, setSessionExpiry] = useState(null);
+  const [sessionExpiry, setSessionExpiry] = useState(IOS_DEMO_ONLY ? Date.now() + 3600 * 1000 : null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [consentsAccepted, setConsentsAccepted] = useState(false);
+  const [consentsAccepted, setConsentsAccepted] = useState(IOS_DEMO_ONLY);
   const [userRole, setUserRole] = useState('Provider Staff');
   const [sessionSecsRemaining, setSessionSecsRemaining] = useState(null);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
@@ -5017,15 +5315,24 @@ function NoesisAppInner() {
             <p className="font-semibold">{authState.user?.email}</p>
             <p className="text-teal-400 font-semibold">{planName} • {userRole}</p>
           </div>
-          <button
-            onClick={() => setActiveTab('Pricing')}
-            className="w-full bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 font-semibold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs mb-1"
-          >
-            <DollarSign size={14} /> Upgrade Plan
-          </button>
-          <button onClick={handleLogout} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
-            <LogOut size={16} /> Sign Out
-          </button>
+          {!IOS_DEMO_ONLY && (
+            <button
+              onClick={() => setActiveTab('Pricing')}
+              className="w-full bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 font-semibold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs mb-1"
+            >
+              <DollarSign size={14} /> Upgrade Plan
+            </button>
+          )}
+          {!IOS_DEMO_ONLY && (
+            <button onClick={handleLogout} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+              <LogOut size={16} /> Sign Out
+            </button>
+          )}
+          {IOS_DEMO_ONLY && (
+            <p className="text-amber-400/80 text-[11px] text-center mt-1 leading-snug">
+              Demo build — sample data only. No login required.
+            </p>
+          )}
         </div>
       </div>
 
