@@ -170,12 +170,17 @@ jobs:
           RUBY
 
       - name: Build iOS archive
+        # Capacitor 8 ships with Swift Package Manager (Package.swift),
+        # NOT CocoaPods. `cap sync ios` no longer runs `pod install`,
+        # so App.xcworkspace is never generated. Build directly from
+        # App.xcodeproj instead — the App scheme lives in the project's
+        # shared schemes and is what the iOS target actually compiles.
         run: |
           set -o pipefail
           cd ios/App
           ARCHIVE_PATH=$RUNNER_TEMP/App.xcarchive
           XCODEBUILD_LOG=$RUNNER_TEMP/xcodebuild-archive.log
-          xcodebuild -workspace App.xcworkspace \
+          xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
