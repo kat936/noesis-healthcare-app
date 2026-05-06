@@ -60,28 +60,14 @@
     </array>
 
     <!-- ── App Transport Security ─────────────────────────────────────── -->
-    <!-- Only allow HTTPS in transit. Required for HIPAA technical safeguards
-         (45 CFR §164.312(e)). The localhost exception below is gated by a
-         build configuration; it MUST NOT ship in App Store / TestFlight
-         release builds. See ios/App/SUBMISSION.md for the verification step. -->
+    <!-- HIPAA technical safeguards (45 CFR §164.312(e)) require encryption
+         in transit. We allow HTTPS only — no per-domain exceptions, no
+         insecure HTTP loads, not even for localhost. Local development
+         uses HTTPS proxies (mkcert + Caddy) per the dev runbook. -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
         <false/>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-        <key>NSExceptionDomains</key>
-        <dict>
-            <!-- localhost for development only — release builds exclude this
-                 dict via build-time Info.plist substitution. -->
-            <key>localhost</key>
-            <dict>
-                <key>NSExceptionAllowsInsecureHTTPLoads</key>
-                <true/>
-                <key>NSIncludesSubdomains</key>
-                <true/>
-            </dict>
-        </dict>
     </dict>
 
     <!-- ── Encryption Export Compliance ───────────────────────────────── -->
@@ -114,11 +100,11 @@
     <key>NSLocalNetworkUsageDescription</key>
     <string>Noesis Health uses your local network for development tooling and to communicate with on-premises EHR systems where applicable.</string>
 
-    <!-- App Tracking Transparency: Noesis Health does NOT track users
-         across apps or websites. The string is supplied in case a future
-         analytics provider triggers the prompt; the answer is informational. -->
-    <key>NSUserTrackingUsageDescription</key>
-    <string>Noesis Health does not track you across apps or websites. This permission is requested only if a future feature requires it.</string>
+    <!-- App Tracking Transparency: intentionally NOT declared. Noesis
+         Health does not track users across apps or websites; declaring
+         NSUserTrackingUsageDescription without a corresponding ATT prompt
+         is a Guideline 5.1.2 rejection trigger. Privacy nutrition labels
+         in App Store Connect declare "Tracking: No" to match. -->
 
     <!-- ── Launch Screen ───────────────────────────────────────────────── -->
     <key>UILaunchStoryboardName</key>

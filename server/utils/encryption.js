@@ -33,6 +33,17 @@ function getKey() {
     return encryptionKey;
   }
 
+  // HIPAA §164.312(a)(2)(iv) key custody: in production, the PHI encryption
+  // key MUST be sourced from AWS Secrets Manager (or an equivalent secrets
+  // store), never from a committed .env file. We surface a non-fatal warning
+  // when the deploy environment is missing the fingerprint hint that
+  // indicates the value came from Secrets Manager.
+  if (process.env.NODE_ENV === 'production' && !process.env.AWS_SECRETS_MANAGER_KEY_ARN) {
+    console.warn('⚠ PHI_ENCRYPTION_KEY appears to be set without AWS_SECRETS_MANAGER_KEY_ARN. ' +
+      'In production this key MUST be sourced from AWS Secrets Manager. ' +
+      'See HIPAA-COMPLIANCE.md §164.312(a)(2)(iv).');
+  }
+
   const keyBuffer = Buffer.from(keyHex, 'hex');
   if (keyBuffer.length !== KEY_LENGTH) {
     throw new Error(`PHI_ENCRYPTION_KEY must be a ${KEY_LENGTH * 2}-character hex string (${KEY_LENGTH} bytes). Got ${keyBuffer.length} bytes.`);

@@ -1,0 +1,147 @@
+# Noesis.io Health — App Store screenshot generator
+#
+# Builds the production web bundle, serves it locally, and renders it in
+# headless Chromium at App Store pixel dimensions (iPhone 6.5" 1284x2778
+# and iPad Pro 12.9" 2048x2732). All `/api/v1/*` calls are intercepted at
+# the network layer with canned data so screens that normally need a live
+# backend (Dashboard, Pre-Check, Eligibility, Prior Auth) render fully.
+#
+# This workflow does NOT submit anything to App Store Connect. The output
+# artifact `app-store-screenshots` is downloaded by the human submitter and
+# uploaded manually via the ASC web UI.
+#
+# Runs on ubuntu-latest because:
+#   - The Capacitor iOS WebView serves the same `build/` bundle as Chromium,
+#     so pixels are identical to a TestFlight install.
+#   - Apple validates dimensions and UI accuracy, not screenshot provenance.
+#   - macOS runners are scarce and slower to start; ubuntu gives us a sub-3
+#     minute first-artifact turnaround.
+
+name: App Store Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build from (default: current branch)'
+        required: false
+        default: ''
+  # Auto-fire on any push to the screenshots-tooling feature branch so the
+  # first push lands an artifact without waiting for the file to merge to
+  # main (workflow_dispatch via the API requires the file to exist on the
+  # default branch).
+  push:
+    branches:
+      - 'feat/app-store-screenshots-tooling'
+    paths:
+      - 'scripts/screenshots/**'
+      - '.github/workflows/screenshots.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        # We don't point at a real backend; Playwright will mock every
+        # /api/v1/* call. The baked-in URL just needs to be syntactically
+        # valid so apiFetch() doesn't throw at build time.
+        env:
+          REACT_APP_API_URL: http://localhost:3001/api/v1
+          REACT_APP_VERSION: 1.0.0-screenshots
+        run: npm run build
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-save playwright@1.47.2
+          npx playwright install --with-deps chromium
+
+      - name: Serve build/ on :4173
+        run: |
+          npx --yes serve -s build -l 4173 > /tmp/serve.log 2>&1 &
+          echo "serve PID $!"
+          # Wait until the static server answers
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:4173/ -o /dev/null; then
+              echo "static server up"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Capture screenshots
+        env:
+          STATIC_URL: http://localhost:4173
+          OUT_DIR:    screenshots/v1.0
+        run: node scripts/screenshots/capture.mjs
+
+      - name: Verify screenshot dimensions
+        # Sanity-check the output: each PNG must match the App Store size
+        # for its device folder. Apple rejects any image that's a single
+        # pixel off, so fail the workflow loudly if we drift.
+        run: |
+          set -e
+          fail=0
+          check() {
+            local file="$1" want_w="$2" want_h="$3"
+            if [ ! -f "$file" ]; then
+              echo "MISSING: $file"
+              fail=1
+              return
+            fi
+            # `file` reports e.g. "PNG image data, 1284 x 2778, ..."
+            local dims
+            dims=$(file "$file" | grep -oE '[0-9]+ x [0-9]+' | head -n1)
+            local w=${dims% x *}
+            local h=${dims#* x }
+            if [ "$w" != "$want_w" ] || [ "$h" != "$want_h" ]; then
+              echo "WRONG SIZE: $file is ${w}x${h}, expected ${want_w}x${want_h}"
+              fail=1
+            else
+              echo "OK: $file (${w}x${h})"
+            fi
+          }
+          for f in screenshots/v1.0/iphone-6.5/*.png; do check "$f" 1284 2778; done
+          for f in screenshots/v1.0/ipad-12.9/*.png; do check "$f" 2048 2732; done
+          if [ $fail -ne 0 ]; then
+            echo "::error::One or more screenshots are missing or the wrong size"
+            exit 1
+          fi
+
+      - name: List generated files
+        if: always()
+        run: |
+          echo "## Screenshot inventory" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ls -la screenshots/v1.0/iphone-6.5/ 2>/dev/null || echo "(no iphone-6.5 output)"
+          ls -la screenshots/v1.0/ipad-12.9/ 2>/dev/null || echo "(no ipad-12.9 output)"
+          ls -la screenshots/v1.0/iphone-6.5/ >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          ls -la screenshots/v1.0/ipad-12.9/ >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload App Store screenshot bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots
+          path: screenshots/v1.0/**/*.png
+          if-no-files-found: error
+          retention-days: 30
