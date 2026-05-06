@@ -21,7 +21,7 @@
     "@capacitor/filesystem": "^8.1.2",
     "@sentry/react": "^7.120.4",
     "decimal.js": "^10.4.3",
-    "lucide-react": "^0.460.0",
+    "lucide-react": "^1.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.13.0"
