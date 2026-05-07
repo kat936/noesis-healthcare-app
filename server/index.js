@@ -52,28 +52,10 @@ app.use(helmet({
 }));
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-const getAllowedOrigins = () => {
-  const raw = process.env.ALLOWED_ORIGINS;
-  if (!raw) return ['http://localhost:3000'];
-  return raw.split(',').map((o) => o.trim());
-};
-
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowed = getAllowedOrigins();
-    // Block null origin in production (file://, cross-origin redirects)
-    if (!origin) {
-      if (process.env.NODE_ENV === 'production') return callback(new Error('CORS: null origin not allowed'));
-      return callback(null, true); // allow in dev
-    }
-    if (allowed.includes(origin)) return callback(null, true);
-    callback(new Error('CORS not allowed'));
-  },
-  credentials: true,
-  methods:        ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['X-Session-Remaining', 'X-Session-Timeout'],
-}));
+// Whitelist + null-origin block live in config/cors.js so the policy
+// can be unit-tested in server/test/security/cors.test.js.
+const { buildCorsOptions } = require('./config/cors');
+app.use(cors(buildCorsOptions()));
 
 // ── Stripe webhook  - MUST be mounted BEFORE express.json() ────────────────────
 // Stripe validates the HMAC signature against the raw request bytes.
