@@ -109,6 +109,8 @@ app.use('/api/v1/scrubbing',    require('./routes/scrubbing'));
 app.use('/api/v1/precheck',     require('./routes/precheck'));
 app.use('/api/v1/audit',        require('./routes/audit'));
 app.use('/api/v1/hipaa',        require('./routes/hipaa'));
+// §164.308(b)(1) BAA tracking, §164.528 accounting of disclosures, §164.524 right of access
+app.use('/api/v1/hipaa',        require('./routes/hipaaCompliance'));
 app.use('/api/v1/health/ehr',   require('./routes/healthEhr'));
 app.use('/api/v1/health/edi',   require('./routes/healthEdi'));
 
