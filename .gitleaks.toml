@@ -1,0 +1,24 @@
+# Gitleaks config for noesis-healthcare-app
+# Extends the default rules and adds an allowlist for paths that are
+# permitted to contain placeholder secret-looking strings.
+#
+# Why this allowlist exists:
+#   server/test/security/ contains regression tests that prove
+#   security boundaries (env-var enforcement, schema validation,
+#   etc.). To exercise a 'production startup loads when SECRET is
+#   provided' branch, the test must pass *some* string into the env.
+#   Those strings are deliberately labeled as test placeholders and
+#   never used outside the unit-test process; gitleaks heuristics
+#   would otherwise flag them as generic-api-key entries.
+#
+# Scope is narrow: only files under server/test/security/ are
+# allowlisted. All other paths still go through the default rules.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow placeholder secrets inside the security-regression test suite"
+paths = [
+  '''server/test/security/.*\.test\.js$''',
+]
