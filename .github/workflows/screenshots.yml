@@ -132,7 +132,7 @@ jobs:
 
       - name: Upload App Store screenshot bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-store-screenshots
           path: screenshots/v1.0/**/*.png
