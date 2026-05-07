@@ -9,6 +9,7 @@
  * Endpoints:
  *   GET  /status                                 - feature status
  *   GET  /standards                              - X12N versions referenced
+ *   GET  /dashboard                              - org-scoped operations dashboard
  *   GET  /partners                               - list trading partners
  *   POST /partners                               - register / update partner
  *   GET  /partners/:code                         - partner details (no creds)
@@ -62,6 +63,21 @@ router.get('/status', authenticate, apiLimiter, (req, res) => {
 router.get('/standards', authenticate, apiLimiter, (req, res) => {
   res.json({ success: true, standards: edi.STANDARDS });
 });
+
+router.get('/dashboard',
+  authenticate,
+  requirePlan('group', 'enterprise'),
+  apiLimiter,
+  async (req, res) => {
+    try {
+      const orgId = _orgIdFromReq(req);
+      const dashboard = await edi.getDashboard(orgId);
+      res.json({ success: true, ...dashboard });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to build dashboard', code: 'EDI_DASHBOARD_ERROR', details: err.message });
+    }
+  }
+);
 
 // ── Trading partners ─────────────────────────────────────────────────────────
 
