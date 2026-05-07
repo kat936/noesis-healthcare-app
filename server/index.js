@@ -126,6 +126,7 @@ app.use('/api/v1/precheck',     require('./routes/precheck'));
 app.use('/api/v1/audit',        require('./routes/audit'));
 app.use('/api/v1/hipaa',        require('./routes/hipaa'));
 app.use('/api/v1/health/ehr',   require('./routes/healthEhr'));
+app.use('/api/v1/health/edi',   require('./routes/healthEdi'));
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
