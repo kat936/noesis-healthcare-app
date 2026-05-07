@@ -70,7 +70,8 @@ test('production startup loads when JWT_SECRET env var is provided', () => {
   `;
   const env = { ...process.env };
   env.NODE_ENV = 'production';
-  env.JWT_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  // gitleaks:allow - obvious test placeholder, not a real secret
+  env.JWT_SECRET = 'unit-test-placeholder-not-a-real-secret';
 
   const result = spawnSync(process.execPath, ['-e', probe], {
     env,
