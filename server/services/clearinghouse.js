@@ -23,6 +23,7 @@
 const https  = require('https');
 const http   = require('http');
 const crypto = require('crypto');
+const { toCents } = require('../utils/money');
 
 const PROVIDER   = process.env.CLEARINGHOUSE_PROVIDER   || 'demo';
 const API_URL    = process.env.CLEARINGHOUSE_API_URL    || '';
@@ -131,16 +132,19 @@ function parse835ERA(ediText) {
 
     if (id === 'N1' && els[1] === 'PR') { result.payer = { name: els[2], id: els[4] }; }
     if (id === 'N1' && els[1] === 'PE') { result.payee = { name: els[2], npi: els[4] }; }
-    if (id === 'BPR')                   { result.totalPaid = parseFloat(els[2]) || 0; result.checkNumber = els[9]; }
+    // 835 ERA reconciliation: amounts must equal payer-reported cents exactly,
+    // so route every parse through Decimal-backed toCents() rather than parseFloat
+    // which loses precision on values that compound (allowed * coinsurance).
+    if (id === 'BPR')                   { result.totalPaid = toCents(els[2]); result.checkNumber = els[9]; }
 
     if (id === 'CLP') {
       if (currentClaim) { result.payments.push(currentClaim); }
       currentClaim = {
         claimId:       els[1],
         status:        els[2] === '1' ? 'paid' : els[2] === '2' ? 'adjusted' : els[2] === '3' ? 'denied' : 'other',
-        claimAmount:   parseFloat(els[3]) || 0,
-        paidAmount:    parseFloat(els[4]) || 0,
-        patientLiability: parseFloat(els[5]) || 0,
+        claimAmount:   toCents(els[3]),
+        paidAmount:    toCents(els[4]),
+        patientLiability: toCents(els[5]),
         payerClaimId:  els[7],
         adjustments:   [],
         serviceLines:  [],
@@ -151,16 +155,16 @@ function parse835ERA(ediText) {
       currentClaim.adjustments.push({
         groupCode:   els[1],
         reasonCode:  els[2],
-        amount:      parseFloat(els[3]) || 0,
-        quantity:    parseFloat(els[4]) || 0,
+        amount:      toCents(els[3]),
+        quantity:    toCents(els[4]),
       });
     }
 
     if (id === 'SVC' && currentClaim) {
       currentClaim.serviceLines.push({
         procedure:    els[1],
-        submittedAmt: parseFloat(els[2]) || 0,
-        paidAmt:      parseFloat(els[3]) || 0,
+        submittedAmt: toCents(els[2]),
+        paidAmt:      toCents(els[3]),
         revenueCode:  els[4],
       });
     }

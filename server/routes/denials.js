@@ -16,6 +16,7 @@ const { ROLES } = require('../config/roles');
 const db = require('../db');
 const { encryptPHI, decryptPHI } = require('../utils/encryption');
 const { buildScopeClause, canAccessResource, inMemoryFilter } = require('../utils/tenantScope');
+const { toCents } = require('../utils/money');
 
 const router = express.Router();
 
@@ -74,8 +75,8 @@ function rowToApi(row) {
     payerId: row.payer_id,
     patientName: (() => { try { return decryptPHI(row.patient_name); } catch { return row.patient_name; } })(),
     serviceDate: row.service_date,
-    deniedAmount: parseFloat(row.denied_amount),
-    claimAmount: parseFloat(row.claim_amount),
+    deniedAmount: toCents(row.denied_amount),
+    claimAmount: toCents(row.claim_amount),
     denialReason: row.denial_reason,
     denialReasonText: row.denial_reason_text,
     denialDate: row.denial_date,

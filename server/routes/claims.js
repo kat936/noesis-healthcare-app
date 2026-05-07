@@ -9,6 +9,7 @@ const { ROLES } = require('../config/roles');
 const db = require('../db');
 const { encryptFields, decryptFields, CLAIM_PHI_FIELDS } = require('../utils/encryption');
 const { buildScopeClause, canAccessResource, inMemoryFilter } = require('../utils/tenantScope');
+const { toCents } = require('../utils/money');
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ function rowToApi(row) {
     cptCode: row.cpt_code,
     icd10Code: row.icd10_code,
     serviceDate: row.service_date,
-    amount: parseFloat(row.amount),
+    amount: toCents(row.amount),
     payer: row.payer,
     status: row.status,
     modifiers: row.modifiers || [],

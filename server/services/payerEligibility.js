@@ -29,6 +29,7 @@
 
 const https  = require('https');
 const http   = require('http');
+const { d, mul, sub: dsub, toCents } = require('../utils/money');
 
 // ── Payer Catalog ─────────────────────────────────────────────────────────────
 const PAYER_CATALOG = {
@@ -160,18 +161,25 @@ function normalizeAvailityResponse(raw, memberId) {
     planType:         cov.insuranceTypeCode || 'unknown',
     effectiveDate:    cov.coverageDates?.[0]?.begin || null,
     terminationDate:  cov.coverageDates?.[0]?.end   || null,
-    deductible: {
-      total:     parseFloat(ded.benefitAmount?.amount || 0),
-      met:       parseFloat(ded.benefitAmount?.amount || 0) * 0.3, // Availity doesn't always return met
-      remaining: parseFloat(ded.benefitAmount?.amount || 0) * 0.7,
-    },
+    deductible: (() => {
+      // Availity doesn't always return the "met" benefit; the 30/70 split is
+      // the standard deterministic estimate. Decimal-back the multiply so
+      // 0.3/0.7 don't drift in IEEE-754.
+      const total = d(ded.benefitAmount?.amount || 0);
+      const met = mul(total, 0.3);
+      return {
+        total:     toCents(total),
+        met:       toCents(met),
+        remaining: toCents(dsub(total, met)),
+      };
+    })(),
     outOfPocket: {
-      total:     parseFloat(oop.benefitAmount?.amount || 0),
+      total:     toCents(oop.benefitAmount?.amount || 0),
       met:       0,
-      remaining: parseFloat(oop.benefitAmount?.amount || 0),
+      remaining: toCents(oop.benefitAmount?.amount || 0),
     },
     copays: {
-      primaryCare: parseFloat(copay.benefitAmount?.amount || 30),
+      primaryCare: toCents(copay.benefitAmount?.amount || 30),
       specialist:  60,
       urgent:      90,
       emergency:   350,
