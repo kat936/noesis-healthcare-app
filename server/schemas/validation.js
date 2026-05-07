@@ -2,11 +2,30 @@ const { z } = require('zod');
 
 /**
  * HTML/Script Injection Sanitization
- * Removes HTML tags and dangerous characters
+ * Removes HTML tags and dangerous characters.
+ *
+ * `safeString` is a complete string schema with the sanitizing transform
+ * applied. It can be chained with `.optional()` and `.default()` because
+ * those methods exist on ZodEffects.
+ *
+ * `boundedSafeString(min, max)` returns a fresh schema that applies
+ * length constraints BEFORE the transform. This is required because
+ * `.min()` and `.max()` are methods on ZodString, not on ZodEffects, so
+ * they cannot be chained after `.transform()`. Use this helper anywhere
+ * a length-bounded sanitized string is needed.
  */
-const safeString = z
-  .string()
-  .transform((s) => s.replace(/<[^>]*>/g, '').replace(/[<>'"`;]/g, ''));
+const sanitize = (s) => s.replace(/<[^>]*>/g, '').replace(/[<>'"`;]/g, '');
+const safeString = z.string().transform(sanitize);
+const boundedSafeString = (min, max) => {
+  let s = z.string();
+  if (min !== undefined) {
+    s = s.min(min);
+  }
+  if (max !== undefined) {
+    s = s.max(max);
+  }
+  return s.transform(sanitize);
+};
 
 /**
  * Login Schema
@@ -23,7 +42,7 @@ const loginSchema = z.object({
  * Full claim submission with medical coding validation
  */
 const claimSchema = z.object({
-  patientName: safeString.min(2).max(100),
+  patientName: boundedSafeString(2, 100),
   providerId: z.string().uuid('Invalid provider ID'),
   payerId: z.string().min(1),
   cptCode: z.string().regex(/^\d{5}$/, 'CPT code must be 5 digits'),
@@ -40,11 +59,11 @@ const claimSchema = z.object({
  * Prior authorization request
  */
 const authorizationSchema = z.object({
-  patientName: safeString.min(2).max(100),
+  patientName: boundedSafeString(2, 100),
   procedureCode: z.string().regex(/^\d{5}$/, 'Invalid procedure code'),
   payerId: z.string().min(1),
   urgency: z.enum(['routine', 'urgent', 'emergency']),
-  clinicalNotes: safeString.max(5000),
+  clinicalNotes: boundedSafeString(undefined, 5000),
   diagnosisCode: z.string().regex(/^[A-Z]\d{2}(\.\d{1,4})?$/).optional()
 });
 
@@ -55,7 +74,7 @@ const authorizationSchema = z.object({
 const messageSchema = z.object({
   conversationId: z.string().uuid().optional(),
   recipientId: z.string().uuid('Invalid recipient ID'),
-  body: safeString.min(1).max(10000),
+  body: boundedSafeString(1, 10000),
   attachments: z.array(z.string().uuid()).max(5).optional().default([])
 });
 
@@ -92,7 +111,7 @@ const npiLookupSchema = z.object({
  * Global search across claims, authorizations, patients
  */
 const searchSchema = z.object({
-  query: safeString.min(1).max(200),
+  query: boundedSafeString(1, 200),
   type: z.enum(['claims', 'authorizations', 'patients', 'all']).optional().default('all'),
   limit: z.number().min(1).max(100).optional().default(20),
   offset: z.number().min(0).optional().default(0)
@@ -107,7 +126,7 @@ const contractSchema = z.object({
   providerNetworkId: z.string().optional(),
   effectiveDate: z.string().datetime(),
   terminationDate: z.string().datetime().optional(),
-  termsAndConditions: safeString.max(10000),
+  termsAndConditions: boundedSafeString(undefined, 10000),
   copay: z.number().optional(),
   coinsurancePercentage: z.number().min(0).max(100).optional()
 });
@@ -129,8 +148,8 @@ const drugSearchSchema = z.object({
  */
 const authorizationUpdateSchema = z.object({
   status: z.enum(['submitted', 'approved', 'denied', 'expired']),
-  approvalNotes: safeString.max(5000).optional(),
-  conditions: safeString.max(5000).optional()
+  approvalNotes: boundedSafeString(undefined, 5000).optional(),
+  conditions: boundedSafeString(undefined, 5000).optional()
 });
 
 /**
@@ -155,5 +174,6 @@ module.exports = {
   drugSearchSchema,
   authorizationUpdateSchema,
   fdaDeviceSearchSchema,
-  safeString
+  safeString,
+  boundedSafeString
 };
