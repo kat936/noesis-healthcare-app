@@ -28,6 +28,7 @@ const { apiLimiter, strictLimiter, submissionLimiter } = require('../middleware/
 const stripe  = require('../services/stripe');
 const db      = require('../db');
 const { PLANS, PLAN_FEATURES, PLAN_LIMITS, getPublicPlans } = require('../config/roles');
+const { toCents } = require('../utils/money');
 
 const router = express.Router();
 
@@ -251,10 +252,10 @@ router.get('/aging', authenticate, requirePlan('solo', 'group', 'enterprise'), a
       `, [req.user.id]);
       const r = result.rows[0];
       return res.json({ success: true, aging: {
-        current:  { count: parseInt(r.current_30)  || 0, amount: parseFloat(r.amount_current) || 0 },
-        days3160: { count: parseInt(r.days_31_60)  || 0, amount: parseFloat(r.amount_31_60)   || 0 },
-        days6190: { count: parseInt(r.days_61_90)  || 0, amount: parseFloat(r.amount_61_90)   || 0 },
-        over90:   { count: parseInt(r.over_90)     || 0, amount: parseFloat(r.amount_over_90) || 0 },
+        current:  { count: parseInt(r.current_30)  || 0, amount: toCents(r.amount_current) },
+        days3160: { count: parseInt(r.days_31_60)  || 0, amount: toCents(r.amount_31_60) },
+        days6190: { count: parseInt(r.days_61_90)  || 0, amount: toCents(r.amount_61_90) },
+        over90:   { count: parseInt(r.over_90)     || 0, amount: toCents(r.amount_over_90) },
       }});
     }
 
@@ -300,8 +301,8 @@ router.get('/analytics', authenticate, requirePlan('solo', 'group', 'enterprise'
       const t = totals.rows[0];
       return res.json({ success: true, analytics: {
         totalClaims:    parseInt(t.total_claims) || 0,
-        totalBilled:    parseFloat(t.total_billed) || 0,
-        totalCollected: parseFloat(t.total_collected) || 0,
+        totalBilled:    toCents(t.total_billed),
+        totalCollected: toCents(t.total_collected),
         collectionRate: t.total_billed > 0 ? ((t.total_collected / t.total_billed) * 100).toFixed(1) + '%' : '0%',
         byMonth:        result.rows,
       }});
