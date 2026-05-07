@@ -439,6 +439,75 @@ async function listSubmissionsForClaim(orgId, claimId) {
   return out.sort((a, b) => (b.submittedAt > a.submittedAt ? 1 : -1));
 }
 
+/**
+ * List all submissions for an org, newest first. Used by the operations
+ * dashboard to aggregate throughput, status mix, AR aging, and ERA totals.
+ *
+ * @param {string} orgId
+ * @param {object} [options]
+ * @param {Date|string} [options.since]    - lower-bound on submitted_at (inclusive)
+ * @param {string[]}    [options.transactionSets] - filter to specific sets (e.g. ['837P','835'])
+ * @param {number}      [options.limit=2000] - hard cap so a runaway dashboard
+ *                                             call cannot exhaust memory
+ * @returns {Promise<object[]>}
+ */
+async function listAllSubmissions(orgId, options) {
+  if (!orgId) { return []; }
+  const sinceIso = options && options.since
+    ? new Date(options.since).toISOString()
+    : null;
+  const sets = options && Array.isArray(options.transactionSets) && options.transactionSets.length
+    ? options.transactionSets.map((s) => String(s).toUpperCase())
+    : null;
+  const limit = Math.min(Math.max(Number(options && options.limit) || 2000, 1), 10000);
+
+  if (db.isConnected()) {
+    const params = [orgId];
+    let where = 'org_id = $1';
+    if (sinceIso) {
+      params.push(sinceIso);
+      where += ` AND submitted_at >= $${params.length}`;
+    }
+    if (sets) {
+      params.push(sets);
+      where += ` AND transaction_set = ANY($${params.length})`;
+    }
+    params.push(limit);
+    const res = await db.query(
+      `SELECT id, partner_id, claim_id, transaction_set, version_id,
+              isa_control, gs_control, st_control, total_amount,
+              status, tracking_id, response_status, response_message,
+              submitted_at, finalized_at
+         FROM edi_claim_submissions
+        WHERE ${where}
+        ORDER BY submitted_at DESC
+        LIMIT $${params.length}`,
+      params
+    );
+    return res.rows.map((r) => ({
+      id: r.id, partnerId: r.partner_id, claimId: r.claim_id,
+      transactionSet: r.transaction_set, versionId: r.version_id,
+      controlNumbers: { isa: r.isa_control, gs: r.gs_control, st: r.st_control },
+      totalAmount: r.total_amount ? Number(r.total_amount) : null,
+      status: r.status, trackingId: r.tracking_id,
+      responseStatus: r.response_status, responseMessage: r.response_message,
+      submittedAt: r.submitted_at, finalizedAt: r.finalized_at,
+    }));
+  }
+
+  const out = [];
+  const sinceMs = sinceIso ? Date.parse(sinceIso) : null;
+  for (const [k, v] of _memStore.entries()) {
+    if (!k.startsWith('submission:')) { continue; }
+    if (v.orgId !== orgId) { continue; }
+    if (sinceMs && Date.parse(v.submittedAt) < sinceMs) { continue; }
+    if (sets && !sets.includes(String(v.transactionSet).toUpperCase())) { continue; }
+    out.push(v);
+  }
+  out.sort((a, b) => (b.submittedAt > a.submittedAt ? 1 : -1));
+  return out.slice(0, limit);
+}
+
 function _resetForTests() {
   _memStore.clear();
 }
@@ -453,5 +522,6 @@ module.exports = {
   deactivateTradingPartner,
   recordSubmission,
   listSubmissionsForClaim,
+  listAllSubmissions,
   _resetForTests,
 };
