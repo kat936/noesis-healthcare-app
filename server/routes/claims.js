@@ -8,6 +8,7 @@ const strategyEngine = require('../services/strategyEngine');
 const { ROLES } = require('../config/roles');
 const db = require('../db');
 const { encryptFields, decryptFields, CLAIM_PHI_FIELDS } = require('../utils/encryption');
+const { buildScopeClause, canAccessResource, inMemoryFilter } = require('../utils/tenantScope');
 
 const router = express.Router();
 
@@ -67,13 +68,11 @@ router.get('/', authenticate, apiLimiter, async (req, res) => {
     const off = parseInt(offset) || 0;
 
     if (useDB()) {
-      let whereClause = 'WHERE 1=1';
-      const params = [];
-
-      if (req.user.role === ROLES.PROVIDER_STAFF) {
-        params.push(req.user.id);
-        whereClause += ` AND provider_id = $${params.length}`;
-      }
+      // Tenant scope: provider_staff -> provider_id; practice_admin -> organization_id;
+      // insurance_rep / super_admin -> all rows.
+      const scope  = buildScopeClause(req);
+      const params = [...scope.params];
+      let whereClause = `WHERE 1=1${scope.clause}`;
 
       if (status) {
         params.push(status);
@@ -97,10 +96,8 @@ router.get('/', authenticate, apiLimiter, async (req, res) => {
     }
 
     // In-memory fallback
-    let results = Array.from(memClaims.values());
-    if (req.user.role === ROLES.PROVIDER_STAFF) {
-      results = results.filter((c) => c.providerId === req.user.id);
-    }
+    const tenantOk = inMemoryFilter(req);
+    let results = Array.from(memClaims.values()).filter(tenantOk);
     if (status) results = results.filter((c) => c.status === status);
     const total = results.length;
 
@@ -225,16 +222,18 @@ router.get('/:id', authenticate, apiLimiter, async (req, res) => {
         return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
       }
       const claim = rowToApi(result.rows[0]);
-      if (req.user.role === ROLES.PROVIDER_STAFF && claim.providerId !== req.user.id) {
-        return res.status(403).json({ error: 'Cannot access this claim', code: 'FORBIDDEN' });
+      // Return 404 (not 403) when caller is outside the tenant scope so we
+      // do not leak the existence of records owned by other organizations.
+      if (!canAccessResource(req, claim)) {
+        return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
       }
       return res.json({ success: true, claim });
     }
 
     const claim = memClaims.get(req.params.id);
     if (!claim) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
-    if (req.user.role === ROLES.PROVIDER_STAFF && claim.providerId !== req.user.id) {
-      return res.status(403).json({ error: 'Cannot access this claim', code: 'FORBIDDEN' });
+    if (!canAccessResource(req, claim)) {
+      return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
     }
     return res.json({ success: true, claim });
   } catch (err) {
@@ -261,16 +260,24 @@ router.put(
       }
 
       if (useDB()) {
+        const existing = await db.query('SELECT * FROM claims WHERE id = $1', [req.params.id]);
+        if (existing.rows.length === 0) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+        if (!canAccessResource(req, rowToApi(existing.rows[0]))) {
+          // 404 not 403: do not leak the existence of cross-tenant records.
+          return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+        }
         const result = await db.query(
           'UPDATE claims SET status=$1, adjudication_notes=$2, updated_at=NOW() WHERE id=$3 RETURNING *',
           [status, notes || null, req.params.id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
         return res.json({ success: true, claim: rowToApi(result.rows[0]) });
       }
 
       const claim = memClaims.get(req.params.id);
       if (!claim) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+      if (!canAccessResource(req, claim)) {
+        return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+      }
       claim.status = status;
       claim.adjudicationNotes = notes;
       claim.updatedAt = new Date().toISOString();
@@ -308,6 +315,9 @@ router.post(
       if (useDB()) {
         const existing = await db.query('SELECT * FROM claims WHERE id = $1', [req.params.id]);
         if (existing.rows.length === 0) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+        if (!canAccessResource(req, rowToApi(existing.rows[0]))) {
+          return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+        }
         if (existing.rows[0].status !== 'denied') {
           return res.status(400).json({ error: 'Only denied claims can be appealed', code: 'INVALID_STATE' });
         }
@@ -324,6 +334,9 @@ router.post(
 
       const claim = memClaims.get(req.params.id);
       if (!claim) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+      if (!canAccessResource(req, claim)) {
+        return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+      }
       if (claim.status !== 'denied') {
         return res.status(400).json({ error: 'Only denied claims can be appealed', code: 'INVALID_STATE' });
       }
@@ -343,13 +356,23 @@ router.post(
 router.get('/:id/score', authenticate, apiLimiter, async (req, res) => {
   try {
     if (useDB()) {
-      const result = await db.query('SELECT id, strategic_score FROM claims WHERE id = $1', [req.params.id]);
+      const result = await db.query(
+        'SELECT id, strategic_score, provider_id, organization_id FROM claims WHERE id = $1',
+        [req.params.id]
+      );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
-      return res.json({ success: true, claimId: result.rows[0].id, score: result.rows[0].strategic_score });
+      const row = result.rows[0];
+      if (!canAccessResource(req, { providerId: row.provider_id, organizationId: row.organization_id })) {
+        return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+      }
+      return res.json({ success: true, claimId: row.id, score: row.strategic_score });
     }
 
     const claim = memClaims.get(req.params.id);
     if (!claim) return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+    if (!canAccessResource(req, claim)) {
+      return res.status(404).json({ error: 'Claim not found', code: 'NOT_FOUND' });
+    }
     return res.json({ success: true, claimId: claim.id, score: claim.strategicScore });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve score', code: 'SCORE_ERROR' });

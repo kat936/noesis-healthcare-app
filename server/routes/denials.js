@@ -15,6 +15,7 @@ const { apiLimiter } = require('../middleware/rateLimiter');
 const { ROLES } = require('../config/roles');
 const db = require('../db');
 const { encryptPHI, decryptPHI } = require('../utils/encryption');
+const { buildScopeClause, canAccessResource, inMemoryFilter } = require('../utils/tenantScope');
 
 const router = express.Router();
 
@@ -111,13 +112,10 @@ router.get('/', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PRACTICE_ADM
     const off = parseInt(offset);
 
     if (db.isConnected()) {
-      const params = [];
-      let where = 'WHERE 1=1';
+      const scope  = buildScopeClause(req);
+      const params = [...scope.params];
+      let where    = `WHERE 1=1${scope.clause}`;
 
-      if (req.user.role === ROLES.PROVIDER_STAFF) {
-        params.push(req.user.id);
-        where += ` AND provider_id = $${params.length}`;
-      }
       if (reason)    { params.push(reason);    where += ` AND denial_reason = $${params.length}`; }
       if (payer)     { params.push(payer);      where += ` AND payer_id = $${params.length}`; }
       if (status)    { params.push(status);     where += ` AND status = $${params.length}`; }
@@ -141,8 +139,7 @@ router.get('/', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PRACTICE_ADM
     }
 
     // In-memory fallback
-    let list = Array.from(denialStore.values());
-    if (req.user.role === ROLES.PROVIDER_STAFF) { list = list.filter((d) => d.providerId === req.user.id); }
+    let list = Array.from(denialStore.values()).filter(inMemoryFilter(req));
     if (reason)    { list = list.filter((d) => d.denialReason === reason); }
     if (payer)     { list = list.filter((d) => d.payerId === payer); }
     if (status)    { list = list.filter((d) => d.status === status); }
@@ -166,19 +163,13 @@ router.get('/analytics/summary', authenticate, authorize(ROLES.PROVIDER_STAFF, R
     let list;
 
     if (db.isConnected()) {
-      const params = [];
-      let where = 'WHERE 1=1';
-      if (req.user.role === ROLES.PROVIDER_STAFF) {
-        params.push(req.user.id);
-        where += ` AND provider_id = $${params.length}`;
-      }
+      const scope  = buildScopeClause(req);
+      const params = [...scope.params];
+      const where  = `WHERE 1=1${scope.clause}`;
       const result = await db.query(`SELECT * FROM denials ${where}`, params);
       list = result.rows.map(rowToApi);
     } else {
-      list = Array.from(denialStore.values());
-      if (req.user.role === ROLES.PROVIDER_STAFF) {
-        list = list.filter((d) => d.providerId === req.user.id);
-      }
+      list = Array.from(denialStore.values()).filter(inMemoryFilter(req));
     }
 
     const totalDenials = list.length;
@@ -243,8 +234,9 @@ router.get('/:id', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PRACTICE_
       }
     }
 
-    if (req.user.role === ROLES.PROVIDER_STAFF && denial.providerId !== req.user.id) {
-      return res.status(403).json({ error: 'Cannot access this denial', code: 'FORBIDDEN' });
+    if (!canAccessResource(req, denial)) {
+      // 404 instead of 403 to avoid leaking the existence of cross-tenant records.
+      return res.status(404).json({ error: 'Denial not found', code: 'NOT_FOUND' });
     }
 
     res.json({ success: true, denial: addCarcInfo(denial) });
@@ -276,8 +268,9 @@ router.post('/:id/appeal', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.P
       }
     }
 
-    if (req.user.role === ROLES.PROVIDER_STAFF && denial.providerId !== req.user.id) {
-      return res.status(403).json({ error: 'Cannot access this denial', code: 'FORBIDDEN' });
+    if (!canAccessResource(req, denial)) {
+      // 404 instead of 403 to avoid leaking the existence of cross-tenant records.
+      return res.status(404).json({ error: 'Denial not found', code: 'NOT_FOUND' });
     }
 
     const carcInfo = carcCodes[denial.denialReason];
@@ -343,8 +336,9 @@ router.put('/:id/status', authenticate, authorize(ROLES.PROVIDER_STAFF, ROLES.PR
       }
     }
 
-    if (req.user.role === ROLES.PROVIDER_STAFF && denial.providerId !== req.user.id) {
-      return res.status(403).json({ error: 'Cannot access this denial', code: 'FORBIDDEN' });
+    if (!canAccessResource(req, denial)) {
+      // 404 instead of 403 to avoid leaking the existence of cross-tenant records.
+      return res.status(404).json({ error: 'Denial not found', code: 'NOT_FOUND' });
     }
 
     const historyEntry = {

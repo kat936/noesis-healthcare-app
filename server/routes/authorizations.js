@@ -14,6 +14,7 @@ const { validate } = require('../middleware/validate');
 const { authorizationSchema, authorizationUpdateSchema } = require('../schemas/validation');
 const { ROLES } = require('../config/roles');
 const db = require('../db');
+const { buildScopeClause, canAccessResource, inMemoryFilter } = require('../utils/tenantScope');
 
 const router = express.Router();
 
@@ -59,10 +60,10 @@ router.get('/', authenticate, apiLimiter, async (req, res) => {
     const off = parseInt(offset);
 
     if (db.isConnected()) {
-      const params = [req.user.id];
-      let where = req.user.role === ROLES.PROVIDER_STAFF
-        ? 'WHERE provider_id = $1'
-        : 'WHERE 1=1 AND $1 IS NOT NULL';
+      const scope  = buildScopeClause(req);
+      const params = [...scope.params];
+      let where    = `WHERE 1=1${scope.clause}`;
+
       if (status) { params.push(status); where += ` AND status = $${params.length}`; }
 
       const countRes = await db.query(`SELECT COUNT(*) FROM authorizations ${where}`, params);
@@ -75,8 +76,7 @@ router.get('/', authenticate, apiLimiter, async (req, res) => {
       return res.json({ success: true, data: dataRes.rows.map(rowToApi), pagination: { total, limit: lim, offset: off, hasMore: off + lim < total } });
     }
 
-    let list = Array.from(authStore.values());
-    if (req.user.role === ROLES.PROVIDER_STAFF) { list = list.filter((a) => a.providerId === req.user.id); }
+    let list = Array.from(authStore.values()).filter(inMemoryFilter(req));
     if (status) { list = list.filter((a) => a.status === status); }
     const total = list.length;
     res.json({ success: true, data: list.slice(off, off + lim), pagination: { total, limit: lim, offset: off } });
@@ -127,16 +127,16 @@ router.get('/:id', authenticate, apiLimiter, async (req, res) => {
       const result = await db.query('SELECT * FROM authorizations WHERE id = $1', [req.params.id]);
       if (result.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
       const auth = rowToApi(result.rows[0]);
-      if (req.user.role === ROLES.PROVIDER_STAFF && auth.providerId !== req.user.id) {
-        return res.status(403).json({ error: 'Cannot access this authorization', code: 'FORBIDDEN' });
+      if (!canAccessResource(req, auth)) {
+        return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
       }
       return res.json({ success: true, authorization: auth });
     }
 
     const auth = authStore.get(req.params.id);
     if (!auth) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
-    if (req.user.role === ROLES.PROVIDER_STAFF && auth.providerId !== req.user.id) {
-      return res.status(403).json({ error: 'Cannot access this authorization', code: 'FORBIDDEN' });
+    if (!canAccessResource(req, auth)) {
+      return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, authorization: auth });
   } catch (err) {
@@ -151,17 +151,24 @@ router.post('/:id/approve', authenticate, authorize(ROLES.INSURANCE_REP, ROLES.P
     const now = new Date().toISOString();
 
     if (db.isConnected()) {
+      const existing = await db.query('SELECT * FROM authorizations WHERE id = $1', [req.params.id]);
+      if (existing.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
+      if (!canAccessResource(req, rowToApi(existing.rows[0]))) {
+        return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
+      }
       const result = await db.query(
         `UPDATE authorizations SET status='approved', auth_number=$1, approved_units=$2, clinical_notes=COALESCE($3,clinical_notes), reviewed_by=$4, reviewed_at=$5, updated_at=NOW()
          WHERE id=$6 RETURNING *`,
         [authNumber || `AUTH-${Date.now()}`, approvedUnits || null, notes || null, req.user.id, now, req.params.id]
       );
-      if (result.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
       return res.json({ success: true, authorization: rowToApi(result.rows[0]), message: 'Authorization approved' });
     }
 
     const auth = authStore.get(req.params.id);
     if (!auth) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
+    if (!canAccessResource(req, auth)) {
+      return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
+    }
     Object.assign(auth, { status: 'approved', authNumber: authNumber || `AUTH-${Date.now()}`, approvedUnits, approvedAt: now, approvedBy: req.user.id });
     res.json({ success: true, authorization: auth, message: 'Authorization approved' });
   } catch (err) {
@@ -176,17 +183,24 @@ router.post('/:id/deny', authenticate, authorize(ROLES.INSURANCE_REP, ROLES.PRAC
     const now = new Date().toISOString();
 
     if (db.isConnected()) {
+      const existing = await db.query('SELECT * FROM authorizations WHERE id = $1', [req.params.id]);
+      if (existing.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
+      if (!canAccessResource(req, rowToApi(existing.rows[0]))) {
+        return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
+      }
       const result = await db.query(
         `UPDATE authorizations SET status='denied', denial_reason=$1, reviewed_by=$2, reviewed_at=$3, updated_at=NOW()
          WHERE id=$4 RETURNING *`,
         [reason || null, req.user.id, now, req.params.id]
       );
-      if (result.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
       return res.json({ success: true, authorization: rowToApi(result.rows[0]), message: 'Authorization denied' });
     }
 
     const auth = authStore.get(req.params.id);
     if (!auth) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
+    if (!canAccessResource(req, auth)) {
+      return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
+    }
     Object.assign(auth, { status: 'denied', denialReason: reason, deniedAt: now, deniedBy: req.user.id });
     res.json({ success: true, authorization: auth, message: 'Authorization denied' });
   } catch (err) {
@@ -200,17 +214,24 @@ router.put('/:id', authenticate, authorize(ROLES.INSURANCE_REP, ROLES.PRACTICE_A
     const { status, approvalNotes } = req.validated;
 
     if (db.isConnected()) {
+      const existing = await db.query('SELECT * FROM authorizations WHERE id = $1', [req.params.id]);
+      if (existing.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
+      if (!canAccessResource(req, rowToApi(existing.rows[0]))) {
+        return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
+      }
       const result = await db.query(
         `UPDATE authorizations SET status=$1, clinical_notes=COALESCE($2,clinical_notes), reviewed_by=$3, reviewed_at=NOW(), updated_at=NOW()
          WHERE id=$4 RETURNING *`,
         [status, approvalNotes || null, req.user.id, req.params.id]
       );
-      if (result.rows.length === 0) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
       return res.json({ success: true, authorization: rowToApi(result.rows[0]) });
     }
 
     const auth = authStore.get(req.params.id);
     if (!auth) { return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' }); }
+    if (!canAccessResource(req, auth)) {
+      return res.status(404).json({ error: 'Authorization not found', code: 'NOT_FOUND' });
+    }
     Object.assign(auth, { status, approvalNotes, reviewedAt: new Date().toISOString(), reviewedBy: req.user.id });
     res.json({ success: true, authorization: auth });
   } catch (err) {
