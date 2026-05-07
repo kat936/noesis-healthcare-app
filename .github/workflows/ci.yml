@@ -186,3 +186,93 @@ jobs:
             grep -q "ruleVersion" "$f" || (echo "::error::$f missing ruleVersion" && exit 1)
           done
           echo "OK — engines emit canonical auditTrail."
+
+      # Block parseFloat() on the high-impact currency surfaces.
+      # Root cause docs: server/utils/money.js. Use toCents() so values
+      # flow through Decimal-backed banker's rounding.
+      - name: Block parseFloat in currency surfaces
+        run: |
+          set +e
+          FILES="server/routes/claims.js server/routes/denials.js server/routes/billing.js server/services/clearinghouse.js server/services/payerEligibility.js"
+          MATCHES=$(grep -nE "parseFloat\\s*\\(" $FILES 2>/dev/null)
+          if [ -n "$MATCHES" ]; then
+            echo "::error::parseFloat() is unsafe for currency. Use server/utils/money.toCents()."
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK — no parseFloat() on currency surfaces."
+
+      # HIPAA §164.312(b) audit controls: never log raw req.body or PHI
+      # fields to stdout. Logger sinks may end up in CloudWatch / Sentry
+      # without a BAA. Path sanitization in middleware/auditLog.js is
+      # the only sanctioned way to record PHI-bearing requests.
+      - name: Block plain-text PHI logging
+        run: |
+          set +e
+          # Match: console.{log,info,debug}(...{patient,member,ssn,dob,mrn,req.body,patientName,memberId}...)
+          MATCHES=$(grep -RnE "console\\.(log|info|debug)\\s*\\([^)]*(req\\.body|\\bpatientName\\b|\\bpatientDob\\b|\\bpatientSsn\\b|\\bmemberId\\b|\\bmemberID\\b|\\bdiagnosis\\b|\\bmrn\\b)" \
+            --include="*.js" \
+            -- server/ 2>/dev/null \
+            | grep -v "/test/" | grep -v "BUILD_SUMMARY")
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Plain-text PHI logging detected (HIPAA §164.312(b))."
+            echo "Use middleware/auditLog.js path sanitization or log only IDs/UUIDs."
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK — no plain-text PHI logging."
+
+      # Block silent failure modes: an empty catch in the server tier hides
+      # the kind of error that should page someone (DB failure, auth bypass,
+      # webhook signature mismatch). Empty catches in middleware/auth.js
+      # against Redis are deliberate and explicitly annotated; the grep
+      # below excludes that pattern by ignoring catch blocks containing
+      # "fall through" or "non-critical".
+      - name: Block empty catch blocks in server/
+        run: |
+          set +e
+          # Match: catch (e?) { } or catch { } that is truly empty (no body)
+          MATCHES=$(grep -RnE "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}|catch\\s*\\{\\s*\\}" \
+            --include="*.js" \
+            -- server/ 2>/dev/null \
+            | grep -v "/test/")
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Empty catch blocks hide real errors. Add a comment or rethrow."
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK — no empty catch blocks."
+
+      # Confirm tenant-bearing routes route through the shared scope helper.
+      # If a future route forgets to import buildScopeClause/canAccessResource
+      # we want CI to call it out, not a customer.
+      - name: Confirm tenant-scope helper used in claims/denials/authorizations
+        run: |
+          set -e
+          for f in server/routes/claims.js server/routes/denials.js server/routes/authorizations.js; do
+            grep -q "tenantScope" "$f" || (echo "::error::$f missing tenantScope import (HIPAA §164.502(a) cross-tenant guard)" && exit 1)
+            grep -q "canAccessResource\\|buildScopeClause" "$f" || (echo "::error::$f imports tenantScope but uses neither helper" && exit 1)
+          done
+          echo "OK — tenant scope helper applied across claims/denials/authorizations."
+
+      # Don't fabricate compliance: assertions of "HIPAA-compliant" must
+      # appear in a context that disclaims certification. Recognized
+      # disclaimer patterns: a "not"-form negation, a BAA-conditioned
+      # claim, or a forward-looking "When ... built" / "if ... need ..."
+      # construction. Test files are excluded so the regression suite
+      # can name what it is asserting against.
+      - name: Block "HIPAA-compliant" claims without negation
+        run: |
+          set +e
+          MATCHES=$(grep -RnE "\\bHIPAA[- ]+compliant\\b" \
+            --include="*.jsx" --include="*.js" --include="*.html" \
+            --include="*.md" \
+            -- legal/ noesis-health-app.jsx privacy-policy.html src/ server/ 2>/dev/null \
+            | grep -v "/test/" \
+            | grep -vEi "(not[ -]+HIPAA-compliant|HIPAA-compliant out of the box, requires|(requires|executed|execute)[ -]+BAA|when HIPAA-compliant features|need HIPAA-compliant|Implement HIPAA-compliant)")
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Found 'HIPAA-compliant' claims that are not negated. Use 'BAA-ready architecture; production HIPAA compliance requires BAA execution.'"
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK — no fabricated HIPAA-compliant claims."

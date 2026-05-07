@@ -2,8 +2,10 @@
  * Noesis.io Health  - Messaging Route
  * © 2026 Athena Core Technologies
  *
- * HIPAA-compliant secure messaging between providers and patients.
- * Message body is AES-256-GCM encrypted before DB storage.
+ * BAA-ready secure messaging between providers and patients.
+ * Message body is AES-256-GCM encrypted before DB storage. Production
+ * HIPAA compliance requires BAA execution with each customer; this
+ * route layer is the technical-controls portion of that posture.
  * Dual-path: PostgreSQL when connected, in-memory fallback for dev.
  */
 
