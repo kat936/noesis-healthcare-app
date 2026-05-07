@@ -9,6 +9,7 @@
  * Endpoints:
  *   GET  /vendors                      - list supported vendors + config status
  *   GET  /status                       - feature status summary
+ *   GET  /dashboard                    - org-scoped connector health aggregation
  *   GET  /connections                  - list this org's connections
  *   GET  /connections/:vendor          - connection status for a vendor
  *   POST /connect/:vendor              - start SMART OAuth (returns authorize URL)
@@ -82,6 +83,21 @@ router.get('/connections',
       res.json({ success: true, connections });
     } catch (err) {
       res.status(500).json({ error: 'Failed to list connections', code: 'EHR_LIST_ERROR', details: err.message });
+    }
+  }
+);
+
+router.get('/dashboard',
+  authenticate,
+  requirePlan('group', 'enterprise'),
+  apiLimiter,
+  async (req, res) => {
+    try {
+      const orgId = _orgIdFromReq(req);
+      const dashboard = await ehr.getDashboard(orgId);
+      res.json({ success: true, ...dashboard });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to build dashboard', code: 'EHR_DASHBOARD_ERROR', details: err.message });
     }
   }
 );

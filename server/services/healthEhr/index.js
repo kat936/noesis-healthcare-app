@@ -417,6 +417,104 @@ function getStatus() {
   };
 }
 
+// ── Dashboard aggregation ───────────────────────────────────────────────────
+
+/**
+ * Build a connector-health snapshot for an organization. Aggregates the raw
+ * connection records into the shape an operations dashboard needs: per-vendor
+ * status, token freshness, last sync, and a roll-up scoreboard.
+ *
+ * Designed for read-only consumption by an investor / operator dashboard.
+ * Does not mutate state; safe to call per page-load.
+ *
+ * @param {string} orgId
+ * @param {object} [options]
+ * @param {number} [options.tokenWarningWindowMs=600000] - threshold below
+ *   which a token is reported as expiring soon (default 10 minutes)
+ * @returns {Promise<object>}
+ */
+async function getDashboard(orgId, options) {
+  if (!orgId) { throw new Error('getDashboard: orgId required'); }
+  const tokenWarnMs = (options && options.tokenWarningWindowMs) || 10 * 60 * 1000;
+  const now = Date.now();
+
+  const connections = await listOrgConnections(orgId);
+  const catalog     = listVendors();
+
+  const byVendorConnection = new Map();
+  for (const c of connections) {
+    byVendorConnection.set(String(c.vendor).toLowerCase(), c);
+  }
+
+  const vendors = catalog.map((v) => {
+    const env  = getVendorEnvConfig(v.id);
+    const conn = byVendorConnection.get(v.id) || null;
+    let connState = 'not_connected';
+    let tokenState = 'unknown';
+    let minutesToExpiry = null;
+    let minutesSinceSync = null;
+
+    if (conn) {
+      connState = conn.status || 'unknown';
+      if (conn.tokenExpiresAt) {
+        const exp = new Date(conn.tokenExpiresAt).getTime();
+        const ms  = exp - now;
+        minutesToExpiry = Math.round(ms / 60000);
+        tokenState = ms <= 0 ? 'expired'
+                  : ms < tokenWarnMs ? 'expiring_soon'
+                  : 'fresh';
+      } else {
+        tokenState = 'no_token';
+      }
+      if (conn.lastSyncedAt) {
+        const t = new Date(conn.lastSyncedAt).getTime();
+        minutesSinceSync = Math.round((now - t) / 60000);
+      }
+    }
+
+    return {
+      vendorId:        v.id,
+      vendorName:      v.name,
+      appRegistry:     v.appRegistry,
+      configured:      env.configured,
+      connectionState: connState,
+      tokenState,
+      minutesToExpiry,
+      lastSyncedAt:    conn ? conn.lastSyncedAt : null,
+      minutesSinceSync,
+      lastError:       conn ? conn.lastError : null,
+      tenantId:        conn ? conn.tenantId : null,
+      fhirBaseUrl:     conn ? conn.fhirBaseUrl : null,
+    };
+  });
+
+  const totals = {
+    catalog:        catalog.length,
+    configured:     vendors.filter((v) => v.configured).length,
+    connected:      vendors.filter((v) => v.connectionState === 'connected').length,
+    refreshFailed:  vendors.filter((v) => v.connectionState === 'refresh_failed').length,
+    disconnected:   vendors.filter((v) => v.connectionState === 'disconnected').length,
+    notConnected:   vendors.filter((v) => v.connectionState === 'not_connected').length,
+    expiringSoon:   vendors.filter((v) => v.tokenState === 'expiring_soon').length,
+    expired:        vendors.filter((v) => v.tokenState === 'expired').length,
+    withErrors:     vendors.filter((v) => v.lastError).length,
+  };
+
+  return {
+    generatedAt: new Date(now).toISOString(),
+    orgId,
+    fhirVersion: 'R4',
+    smartLaunchVersion: 'v2',
+    totals,
+    vendors,
+    disclaimer:
+      'Connector for educational and development use. Production use requires ' +
+      'a Business Associate Agreement (BAA) executed with each EHR vendor and ' +
+      'completion of the vendor certification track (Epic App Orchard, ' +
+      'athenahealth Marketplace, Oracle Health / Cerner Code Console).',
+  };
+}
+
 module.exports = {
   // catalog + config
   PROFILES,
@@ -424,6 +522,7 @@ module.exports = {
   listVendors,
   getVendorEnvConfig,
   getStatus,
+  getDashboard,
 
   // connect lifecycle
   startConnect,
