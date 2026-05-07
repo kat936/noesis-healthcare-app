@@ -29,6 +29,30 @@ const ehr = require('../services/healthEhr');
 
 const router = express.Router();
 
+/**
+ * Feature flag gate. The EHR vertical ships ON by default because the
+ * technical implementation is complete; per-vendor live connection still
+ * requires vendor portal credentials, but the surface (vendor catalog,
+ * connection status, OAuth start) is investor-visible. To explicitly hide
+ * the entire surface set HEALTH_EHR_FEATURE_ENABLED=false (kill switch).
+ * Endpoints that require credentials return EHR_VENDOR_NOT_CONFIGURED (400)
+ * when a vendor's env config is missing, so investors see a clear error
+ * rather than a 404.
+ */
+const FEATURE_ENABLED =
+  String(process.env.HEALTH_EHR_FEATURE_ENABLED || 'true').toLowerCase() !== 'false';
+
+function _featureGate(req, res, next) {
+  if (FEATURE_ENABLED) { return next(); }
+  return res.status(503).json({
+    error: 'EHR feature is disabled',
+    code: 'EHR_FEATURE_DISABLED',
+    hint: 'Unset HEALTH_EHR_FEATURE_ENABLED or set to "true" to enable',
+  });
+}
+
+router.use(_featureGate);
+
 function _orgIdFromReq(req) {
   return req.user && (req.user.organizationId || req.user.orgId || req.user.id);
 }
