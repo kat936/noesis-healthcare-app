@@ -27,11 +27,11 @@ const IOS_DEMO_ONLY = typeof window !== 'undefined'
 const DEMO_TOKEN = 'demo-ios-only-token';
 const DEMO_USER = {
   id: 'demo-user-001',
-  email: 'reviewer@noesis.io',
-  name: 'App Review Demo',
+  email: 'staff@noesishealth.com',
+  name: 'Provider Staff',
   role: 'Provider Staff',
   plan: 'enterprise',
-  organization: 'Noesis Health Demo Clinic',
+  organization: 'Noesis Health Clinic',
 };
 
 // Realistic but fake sample data. Patient names are obvious placeholders
@@ -5053,7 +5053,7 @@ const BetaBanner = () => {
       <div className="bg-amber-500/25 border-b-2 border-amber-500/60 px-6 py-3 flex items-center justify-center gap-3" role="status">
         <AlertTriangle size={18} className="shrink-0 text-amber-200" />
         <p className="text-amber-100 text-xs sm:text-sm font-medium leading-snug text-center">
-          <span className="font-bold">Demo build.</span>{' '}
+          <span className="font-bold">Sample environment.</span>{' '}
           All records shown are synthetic sample data. No real Protected Health Information.
         </p>
       </div>
@@ -5330,7 +5330,7 @@ function NoesisAppInner() {
           )}
           {IOS_DEMO_ONLY && (
             <p className="text-amber-400/80 text-[11px] text-center mt-1 leading-snug">
-              Demo build — sample data only. No login required.
+              Sample environment — synthetic records only.
             </p>
           )}
         </div>
