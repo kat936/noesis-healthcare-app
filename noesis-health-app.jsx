@@ -4611,7 +4611,7 @@ const IntegrationStatusModule = ({ token }) => {
       const success = result?.success !== false;
       const isDemo = result?.proof?.demo === true;
       const message = result?.message
-        || (isDemo ? `Demo mode — configure env vars for live connection` : success ? 'Service reachable' : 'Connection failed');
+        || (isDemo ? `Sample environment — service connection deferred` : success ? 'Service reachable' : 'Connection failed');
       setIntegrations(prev => prev.map((i, j) => j === idx ? {
         ...i,
         testing: false,
@@ -4877,7 +4877,7 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
           window.location.href = result.url;
         }
       } else if (result.demo) {
-        toast.info(`Demo mode — Stripe not configured. In production this opens Stripe Checkout for the ${plan} plan (${billingInterval}).`);
+        toast.info(`Subscription management is handled at noesishealth.com. Sign in there to upgrade your plan.`);
       }
     } catch (err) {
       setError(err.message || 'Failed to start checkout');
@@ -5222,8 +5222,12 @@ function NoesisAppInner() {
   const isInsurance = userRole === 'Insurance Rep';
   const isProvider = !isInsurance;
 
-  const providerTabs = ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
-  const insuranceTabs = ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
+  const providerTabs = IOS_DEMO_ONLY 
+    ? ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Legal']
+    : ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
+  const insuranceTabs = IOS_DEMO_ONLY 
+    ? ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Legal']
+    : ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
   const tabs = isInsurance ? insuranceTabs : providerTabs;
   // Normalize legacy plan names (essentials→solo, professional→group)
   const rawPlan = authState.user?.plan || 'solo';
