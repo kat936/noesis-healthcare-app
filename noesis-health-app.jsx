@@ -5327,12 +5327,18 @@ function NoesisAppInner() {
   const isInsurance = userRole === 'Insurance Rep';
   const isProvider = !isInsurance;
 
-  // Pricing tab is always visible on iOS now that IAP is wired - Apple Guideline
-  // 3.1.1 requires IAP entry points for digital subscriptions to be reachable
-  // in-app. Demo-mode reviewers still land on Dashboard but can navigate to
-  // Pricing to exercise the StoreKit Subscribe / Restore flow.
-  const providerTabs  = ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
-  const insuranceTabs = ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
+  // Pricing tab is hidden on iOS in demo / pre-subscription state to preserve
+  // the Build 32 fix (#324d015) that cleared Apple Guideline 2.2 / 3.1.1 /
+  // 3.1.3 b/d. App Review still lands on a populated Dashboard with no
+  // Pricing entry point in sight. Once a real Apple IAP entitlement is
+  // detected at runtime, `IOS_DEMO_ONLY` flips false and the Pricing tab
+  // reappears so paying users can change plans / see billing info in-app.
+  const providerTabs  = IOS_DEMO_ONLY
+    ? ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Legal']
+    : ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
+  const insuranceTabs = IOS_DEMO_ONLY
+    ? ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Legal']
+    : ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
   const tabs = isInsurance ? insuranceTabs : providerTabs;
   // Normalize legacy plan names (essentials→solo, professional→group)
   const rawPlan = authState.user?.plan || 'solo';
