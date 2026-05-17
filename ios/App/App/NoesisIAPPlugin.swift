@@ -95,6 +95,10 @@ public class NoesisIAPPlugin: CAPPlugin {
                 let result = try await product.purchase()
                 switch result {
                 case .success(let verification):
+                    // jwsRepresentation is Apple's signed JWS; the Health
+                    // backend (Phase 2) verifies it against Apple's public
+                    // keys before granting entitlements server-side.
+                    let jws = verification.jwsRepresentation
                     switch verification {
                     case .verified(let transaction):
                         await transaction.finish()
@@ -103,7 +107,8 @@ public class NoesisIAPPlugin: CAPPlugin {
                             "success": true,
                             "productId": transaction.productID,
                             "transactionId": String(transaction.id),
-                            "originalTransactionId": String(transaction.originalID)
+                            "originalTransactionId": String(transaction.originalID),
+                            "jwsRepresentation": jws
                         ]
                         for (key, value) in entitlements {
                             payload[key] = value
@@ -165,6 +170,10 @@ public class NoesisIAPPlugin: CAPPlugin {
     private func activeEntitlementsPayload() async -> [String: Any] {
         var active: [[String: Any]] = []
         for await result in Transaction.currentEntitlements {
+            // jwsRepresentation is captured from the outer VerificationResult
+            // so that .verified entries carry the signed JWS the backend will
+            // use to validate against Apple's keys in Phase 2.
+            let jws = result.jwsRepresentation
             if case .verified(let transaction) = result {
                 if transaction.revocationDate == nil,
                    Self.productIds.contains(transaction.productID) {
@@ -172,7 +181,8 @@ public class NoesisIAPPlugin: CAPPlugin {
                         "productId": transaction.productID,
                         "transactionId": String(transaction.id),
                         "originalTransactionId": String(transaction.originalID),
-                        "expirationDate": transaction.expirationDate?.timeIntervalSince1970 ?? 0
+                        "expirationDate": transaction.expirationDate?.timeIntervalSince1970 ?? 0,
+                        "jwsRepresentation": jws
                     ])
                 }
             }

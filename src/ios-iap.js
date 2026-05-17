@@ -50,6 +50,51 @@ function emptyEntitlements() {
   return { active: false, plan: 'none', entitlements: [] };
 }
 
+// Phase 1: fire-and-forget POST the signed Apple JWS to the Health backend
+// so the server can begin recording Apple subscriptions as soon as users
+// start purchasing. Phase 2 will add real JWS signature verification against
+// Apple's public keys and persist plan/role entitlements server-side. The
+// client never blocks on this — purchase / restore UX must remain instant
+// and offline-tolerant even when the verify endpoint is missing or down.
+const VERIFY_PATH = '/billing/apple/verify-transaction';
+
+function apiBase() {
+  // Mirrors the API_BASE constant in noesis-health-app.jsx so the IAP
+  // bridge can stay self-contained. If Vite has inlined REACT_APP_API_URL
+  // at build time, use it; otherwise fall back to the local dev server.
+  // typeof guard avoids a ReferenceError in environments where process is
+  // undefined (Capacitor/iOS runtime with Vite's strict prod build).
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+      return process.env.REACT_APP_API_URL;
+    }
+  } catch {
+    // ignore — fall through to default
+  }
+  return 'http://localhost:3001/api/v1';
+}
+
+export function postTransactionForVerification(payload, { token } = {}) {
+  // Only meaningful on iOS, and only when there's something to send.
+  if (!isIOSNative() || !payload) return;
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // keepalive lets the POST survive if the WebView navigates immediately
+    // after purchase (e.g. logout → LoginScreen transition).
+    fetch(`${apiBase()}${VERIFY_PATH}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => {}); // fire-and-forget
+  } catch {
+    // never throw — Phase 1 must not block purchase UX
+  }
+}
+
 export async function getProducts() {
   if (!isIOSNative()) return { products: [] };
   try {
@@ -60,7 +105,7 @@ export async function getProducts() {
   }
 }
 
-export async function purchase(plan, cadence) {
+export async function purchase(plan, cadence, opts = {}) {
   if (!isIOSNative()) {
     throw new Error('iOS IAP purchase is only available on the iOS app.');
   }
@@ -68,13 +113,47 @@ export async function purchase(plan, cadence) {
   if (!productId) {
     throw new Error(`No iOS product configured for plan=${plan} cadence=${cadence}`);
   }
-  return Plugin.purchase({ productId });
+  const result = await Plugin.purchase({ productId });
+  // Fire-and-forget: if the purchase succeeded, ship the signed JWS to the
+  // backend so Phase 2 can finalize entitlement persistence.
+  if (result?.success && result.jwsRepresentation) {
+    postTransactionForVerification(
+      {
+        kind: 'purchase',
+        productId: result.productId || productId,
+        transactionId: result.transactionId,
+        originalTransactionId: result.originalTransactionId,
+        jwsRepresentation: result.jwsRepresentation,
+      },
+      { token: opts.token },
+    );
+  }
+  return result;
 }
 
-export async function restore() {
+export async function restore(opts = {}) {
   if (!isIOSNative()) return emptyEntitlements();
   try {
-    return await Plugin.restore();
+    const result = await Plugin.restore();
+    // Mirror purchase: ship every restored entitlement's JWS so Phase 2 can
+    // reconcile server-side state if the user reinstalls or switches devices.
+    if (result?.active && Array.isArray(result.entitlements)) {
+      for (const ent of result.entitlements) {
+        if (ent?.jwsRepresentation) {
+          postTransactionForVerification(
+            {
+              kind: 'restore',
+              productId: ent.productId,
+              transactionId: ent.transactionId,
+              originalTransactionId: ent.originalTransactionId,
+              jwsRepresentation: ent.jwsRepresentation,
+            },
+            { token: opts.token },
+          );
+        }
+      }
+    }
+    return result;
   } catch (err) {
     console.warn('[NoesisIAP] restore failed:', err);
     return emptyEntitlements();
