@@ -1,0 +1,131 @@
+{
+  "identifier" : "5B2D2E7A-NOESIS-HEALTH",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_compatibilityTimeRate" : 1,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21455901",
+      "localizations" : [
+        {
+          "description" : "Noesis Health subscription plans for healthcare providers and group practices.",
+          "displayName" : "Noesis Health Subscriptions",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "noesis_health_subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "299.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "21455902",
+          "introductoryOffer" : {
+            "internalID" : "21455910",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Solo practice plan - 500 claims/month, eligibility, scrubbing, ERA posting, secure messaging, audit trail. Includes 7-day free trial.",
+              "displayName" : "Noesis Health Solo",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "io.noesis.health.solo.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Noesis Health Solo (Monthly)",
+          "subscriptionGroupID" : "21455901",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "2989.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "21455903",
+          "introductoryOffer" : {
+            "internalID" : "21455911",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Solo practice plan billed annually - save approx 17 percent versus monthly. Includes 7-day free trial.",
+              "displayName" : "Noesis Health Solo (Annual)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "io.noesis.health.solo.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Noesis Health Solo (Annual)",
+          "subscriptionGroupID" : "21455901",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "799.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "21455904",
+          "introductoryOffer" : {
+            "internalID" : "21455912",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Group Practice plan - 2,000 claims/month, prior auth workflows, A/R aging, guardrails, advanced analytics, up to 20 providers. Includes 7-day free trial.",
+              "displayName" : "Noesis Health Group Practice",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "io.noesis.health.group.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Noesis Health Group Practice (Monthly)",
+          "subscriptionGroupID" : "21455901",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "7989.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "21455905",
+          "introductoryOffer" : {
+            "internalID" : "21455913",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Group Practice plan billed annually - save approx 17 percent versus monthly. Includes 7-day free trial.",
+              "displayName" : "Noesis Health Group Practice (Annual)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "io.noesis.health.group.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Noesis Health Group Practice (Annual)",
+          "subscriptionGroupID" : "21455901",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
