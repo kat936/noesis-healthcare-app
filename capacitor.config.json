@@ -11,6 +11,11 @@
     "allowsLinkPreview": false,
     "handleApplicationNotifications": true
   },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": true,

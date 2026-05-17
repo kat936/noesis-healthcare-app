@@ -1,0 +1,11 @@
+# Capacitor Android signing config — DO NOT COMMIT real values
+# Copy to `android/key.properties` and fill in. CI reads these from GitHub secrets.
+#
+# storeFile path is resolved relative to android/app/ when bundleRelease runs.
+# Recommended layout: keep the .keystore OUTSIDE the repo (e.g. Athena Core/Secrets)
+# and use an absolute path here.
+
+storeFile=C:/Users/aikli/Documents/Athena Core/Secrets/noesis-health-release.keystore
+storePassword=REPLACE_ME
+keyAlias=noesis-health
+keyPassword=REPLACE_ME
