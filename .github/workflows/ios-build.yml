@@ -45,7 +45,7 @@ jobs:
         # never throws at module load.
         env:
           REACT_APP_API_URL: https://demo.invalid/api/v1
-          REACT_APP_VERSION: 1.0.0
+          REACT_APP_VERSION: 1.0.1
         run: npm run build
 
       - name: Install Capacitor CLI
