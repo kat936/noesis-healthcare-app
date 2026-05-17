@@ -10,19 +10,30 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import * as iosIAP from '@/ios-iap.js';
 
 // ============ API LAYER ============
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api/v1';
 
-// IOS_DEMO_ONLY: when running inside the Capacitor iOS shell (App Review,
-// TestFlight pre-launch, sales demo), short-circuit every network call and
-// auth flow so the app launches straight into a populated dashboard with
-// fake data. No real PHI, no backend dependency, no auth required.
-//
+// IS_NATIVE_IOS: true only when running inside the Capacitor iOS shell.
+// IOS_DEMO_ONLY: stays true on iOS until an active Apple IAP subscription
+// is detected, at which point setIOSSubscriptionState(true) flips it false
+// and the app switches to real auth + gating + free-trial paths. Apple
+// reviewers and TestFlight users without an active subscription still land
+// on the populated demo dashboard, preserving the prior App Review flow.
 // Web flow is unchanged: in a browser window.Capacitor is undefined, so
-// IOS_DEMO_ONLY evaluates false and apiFetch behaves normally.
-const IOS_DEMO_ONLY = typeof window !== 'undefined'
-  && !!window.Capacitor?.isNativePlatform?.();
+// IS_NATIVE_IOS and IOS_DEMO_ONLY both evaluate false.
+const IS_NATIVE_IOS = typeof window !== 'undefined'
+  && !!window.Capacitor?.isNativePlatform?.()
+  && (window.Capacitor?.getPlatform?.() === 'ios' || typeof window.Capacitor?.getPlatform !== 'function');
+// eslint-disable-next-line prefer-const
+let IOS_DEMO_ONLY = IS_NATIVE_IOS;
+function setIOSSubscriptionState(active) {
+  IOS_DEMO_ONLY = IS_NATIVE_IOS && !active;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('noesis-ios-sub-state', { detail: { active: !!active } }));
+  }
+}
 
 const DEMO_TOKEN = 'demo-ios-only-token';
 const DEMO_USER = {
@@ -4832,13 +4843,14 @@ const SessionTimeoutWarning = ({ secondsRemaining, onStayLoggedIn, onLogout }) =
 };
 
 // ============ PRICING PAGE ============
-const PricingPage = ({ token, currentPlan, onUpgrade }) => {
+const PricingPage = ({ token, currentPlan, onUpgrade, onIAPSuccess }) => {
   const toast = useToast();
   const [loading, setLoading] = useState(null);
   const [billingInterval, setBillingInterval] = useState('monthly');
   const [error, setError] = useState('');
 
   const ANNUAL_DISCOUNT = 0.17; // ~2 months free
+  const useIAP = iosIAP.isIOSNative();
 
   const getPriceDisplay = (plan) => {
     if (plan === 'enterprise') return { main: 'Custom', sub: 'Contact sales for enterprise pricing' };
@@ -4847,6 +4859,46 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
     return billingInterval === 'monthly'
       ? { main: `$${monthly}`, sub: '/month, billed monthly' }
       : { main: `$${annual}`, sub: `/month, billed $${annual * 12}/year` };
+  };
+
+  const handleIAPSubscribe = async (plan) => {
+    setError('');
+    setLoading(plan);
+    try {
+      const result = await iosIAP.purchase(plan, billingInterval);
+      if (result?.success) {
+        setIOSSubscriptionState(true);
+        toast.success?.(`Subscription active. Your 7-day free trial has started.`);
+        onIAPSuccess?.({ plan, productId: result.productId, transactionId: result.transactionId });
+      } else if (result?.cancelled) {
+        toast.info?.('Purchase cancelled.');
+      } else if (result?.pending) {
+        toast.info?.('Purchase pending Apple approval. You will be entitled once it is approved.');
+      }
+    } catch (err) {
+      setError(err?.message || 'Apple purchase failed');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRestore = async () => {
+    setError('');
+    setLoading('__restore');
+    try {
+      const result = await iosIAP.restore();
+      if (result?.active) {
+        setIOSSubscriptionState(true);
+        toast.success?.('Subscription restored.');
+        onIAPSuccess?.({ plan: result.plan, restored: true });
+      } else {
+        toast.info?.('No active Apple subscription found on this Apple ID.');
+      }
+    } catch (err) {
+      setError(err?.message || 'Restore failed');
+    } finally {
+      setLoading(null);
+    }
   };
 
   const handleSubscribe = async (plan) => {
@@ -4862,20 +4914,16 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
       }
       return;
     }
+    // iOS: route through Apple IAP (Guideline 3.1.1). Stripe Checkout is web-only.
+    if (useIAP) {
+      return handleIAPSubscribe(plan);
+    }
     setError('');
     setLoading(plan);
     try {
       const result = await api.createCheckoutSession(token, plan, billingInterval);
       if (result.url) {
-        // iOS Capacitor: must open Stripe in external browser, NOT the WKWebView
-        if (window.Capacitor?.isNativePlatform?.()) {
-          try {
-            const { Browser } = await import('@capacitor/browser');
-            await Browser.open({ url: result.url });
-          } catch { window.open(result.url, '_blank', 'noopener'); }
-        } else {
-          window.location.href = result.url;
-        }
+        window.location.href = result.url;
       } else if (result.demo) {
         toast.info(`Subscription management is handled at noesishealth.com. Sign in there to upgrade your plan.`);
       }
@@ -4991,11 +5039,13 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
                   }`}
                 >
                   {loading === planKey ? (
-                    <><Loader size={16} className="animate-spin" /> Redirecting to Stripe…</>
+                    <><Loader size={16} className="animate-spin" /> {useIAP ? 'Opening App Store…' : 'Redirecting to Stripe…'}</>
                   ) : isCurrent ? (
                     <><CheckCircle size={16} /> Current Plan</>
                   ) : planKey === 'enterprise' ? (
                     'Contact Sales'
+                  ) : useIAP ? (
+                    `Subscribe - ${plan.displayName}`
                   ) : (
                     `Get Started - ${plan.displayName}`
                   )}
@@ -5005,6 +5055,22 @@ const PricingPage = ({ token, currentPlan, onUpgrade }) => {
           );
         })}
       </div>
+
+      {/* Apple IAP: Restore Purchases (required by Apple Guideline 3.1.1) */}
+      {useIAP && (
+        <div className="max-w-5xl mx-auto text-center">
+          <button
+            onClick={handleRestore}
+            disabled={loading === '__restore'}
+            className="text-teal-400 hover:text-teal-300 text-sm font-semibold underline"
+          >
+            {loading === '__restore' ? 'Restoring…' : 'Restore Purchases'}
+          </button>
+          <p className="text-slate-500 text-xs mt-2 max-w-xl mx-auto leading-relaxed">
+            Apple subscriptions auto-renew and can be cancelled or managed in your Apple ID account settings. A 7-day free trial is included with each plan and converts to a paid subscription if not cancelled before it ends.
+          </p>
+        </div>
+      )}
 
       {/* Overage explainer */}
       <div className="max-w-5xl mx-auto bg-slate-800/50 border border-slate-700/50 rounded-xl p-6">
@@ -5211,6 +5277,46 @@ function NoesisAppInner() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // iOS IAP: on mount check current entitlements, and listen for renewals.
+  // If an active Apple subscription is found, flip out of demo mode and
+  // present the login screen so the real auth + gating + free-trial paths
+  // take over. Demo users (no subscription) keep the existing populated
+  // dashboard so Apple App Review continues to land on functional content.
+  // Local state mirror of the module-level IOS_DEMO_ONLY flag so React
+  // re-renders the tree when an entitlement check or purchase flips it.
+  const [, setIosSubActive] = useState(false);
+  useEffect(() => {
+    if (!iosIAP.isIOSNative()) return undefined;
+    let cancelled = false;
+    const applyEntitlements = (entitlements) => {
+      const active = !!entitlements?.active;
+      if (cancelled) return;
+      setIOSSubscriptionState(active);
+      setIosSubActive(active);
+      if (active) {
+        // Drop the synthetic demo session so the user hits LoginScreen.
+        // Real auth + consent gate + plan/role gating + free-trial paths
+        // resume from this point exactly as on web.
+        setAuthState({ token: null, user: null, expiresIn: 0 });
+        setSessionExpiry(null);
+        setConsentsAccepted(false);
+      }
+    };
+    iosIAP.getActiveEntitlements().then(applyEntitlements).catch(() => {});
+    const unsub = iosIAP.addSubscriptionUpdatedListener(applyEntitlements);
+    return () => { cancelled = true; unsub?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleIAPSuccess = useCallback(() => {
+    setIosSubActive(true);
+    // Force the user through real auth after a successful in-app purchase.
+    setAuthState({ token: null, user: null, expiresIn: 0 });
+    setSessionExpiry(null);
+    setConsentsAccepted(false);
+    setActiveTab('Dashboard');
+  }, []);
+
   if (!authState.token) return <LoginScreen onLogin={handleLogin} />;
 
   if (!consentsAccepted) {
@@ -5222,12 +5328,12 @@ function NoesisAppInner() {
   const isInsurance = userRole === 'Insurance Rep';
   const isProvider = !isInsurance;
 
-  const providerTabs = IOS_DEMO_ONLY 
-    ? ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Legal']
-    : ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
-  const insuranceTabs = IOS_DEMO_ONLY 
-    ? ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Legal']
-    : ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
+  // Pricing tab is always visible on iOS now that IAP is wired - Apple Guideline
+  // 3.1.1 requires IAP entry points for digital subscriptions to be reachable
+  // in-app. Demo-mode reviewers still land on Dashboard but can navigate to
+  // Pricing to exercise the StoreKit Subscribe / Restore flow.
+  const providerTabs  = ['Dashboard', 'Claims', 'Pre-Check', 'Denials', 'Eligibility', 'Prior Auth', 'Messaging', 'Payments', 'Analytics', 'Guardrails', 'Contracts', 'Security', 'Growth', 'Integrations', 'Pricing', 'Legal'];
+  const insuranceTabs = ['Dashboard', 'Adjudication', 'Appeals', 'Fraud Detection', 'Network', 'Analytics', 'Integrations', 'Pricing', 'Legal'];
   const tabs = isInsurance ? insuranceTabs : providerTabs;
   // Normalize legacy plan names (essentials→solo, professional→group)
   const rawPlan = authState.user?.plan || 'solo';
@@ -5249,7 +5355,7 @@ function NoesisAppInner() {
     Security: <SecurityCenterModule plan={plan} isMasked={isMasked} setIsMasked={setIsMasked} />,
     Growth: <GrowthEngineModule plan={plan} token={authState.token} />,
     Integrations: <IntegrationStatusModule token={authState.token} />,
-    Pricing: <PricingPage token={authState.token} currentPlan={plan} onUpgrade={(p) => { /* noop, handled inside */ }} />,
+    Pricing: <PricingPage token={authState.token} currentPlan={plan} onUpgrade={(p) => { /* noop, handled inside */ }} onIAPSuccess={handleIAPSuccess} />,
     Legal: <LegalSection />,
     Adjudication: <AdjudicationModule token={authState.token} userRole={userRole} />,
     'Fraud Detection': <FraudDetectionModule token={authState.token} />,
