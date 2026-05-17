@@ -12,19 +12,26 @@ const {
   SYSTEM_FHIR_SCOPES,
 } = require('../services/healthEhr/vendorProfiles');
 
-test('VENDOR_IDS contains the three target EHRs', () => {
-  assert.deepEqual([...VENDOR_IDS].sort(), ['athena', 'cerner', 'epic']);
+test('VENDOR_IDS contains the four target EHRs', () => {
+  assert.deepEqual([...VENDOR_IDS].sort(), ['athena', 'cerner', 'epic', 'veradigm']);
 });
 
 test('listVendors returns one entry per supported vendor with FHIR R4', () => {
   const list = listVendors();
-  assert.equal(list.length, 3);
+  assert.equal(list.length, 4);
   for (const v of list) {
     assert.equal(v.fhirVersion, 'R4');
     assert.equal(typeof v.name, 'string');
     assert.equal(typeof v.sandboxBaseUrl, 'string');
     assert.match(v.sandboxBaseUrl, /^https:\/\//);
+    assert.ok(v.maturity === 'production' || v.maturity === 'scaffold');
   }
+});
+
+test('Veradigm profile is exposed as a scaffold-tier vendor', () => {
+  const veradigm = listVendors().find((v) => v.id === 'veradigm');
+  assert.ok(veradigm, 'veradigm should appear in the vendor catalog');
+  assert.equal(veradigm.maturity, 'scaffold');
 });
 
 test('PROFILES are frozen (mutation must throw or no-op)', () => {
@@ -60,7 +67,7 @@ test('resolveVendorProfile defaults to vendor sandbox when no override', () => {
 test('resolveVendorProfile throws on unknown vendor with helpful message', () => {
   assert.throws(
     () => resolveVendorProfile('nextgen'),
-    /Unknown EHR vendor.*Supported.*epic.*athena.*cerner/
+    /Unknown EHR vendor.*Supported.*epic.*athena.*cerner.*veradigm/
   );
 });
 

@@ -28,6 +28,7 @@ const { authenticate, requirePlan } = require('../middleware/auth');
 const { apiLimiter, submissionLimiter } = require('../middleware/rateLimiter');
 
 const edi = require('../services/healthEdi');
+const baa = require('../services/baa');
 
 const router = express.Router();
 
@@ -55,8 +56,20 @@ function _orgIdFromReq(req) {
 
 router.use(_featureGate);
 
-router.get('/status', authenticate, apiLimiter, (req, res) => {
-  res.json({ success: true, ...edi.getStatus() });
+router.get('/status', authenticate, apiLimiter, async (req, res) => {
+  const orgId = _orgIdFromReq(req);
+  let baaStatus = null;
+  try {
+    baaStatus = await baa.getOrgBAAStatus(orgId);
+  } catch (_err) {
+    baaStatus = null;
+  }
+  res.json({
+    success: true,
+    ...edi.getStatus(),
+    baa: baaStatus,
+    activationNotice: 'EHR + EDI integrations in development. Continuous monitoring via Vanta (SOC 2 + HIPAA + ISO 27001). BAA execution + partner-vendor onboarding in progress.',
+  });
 });
 
 router.get('/standards', authenticate, apiLimiter, (req, res) => {

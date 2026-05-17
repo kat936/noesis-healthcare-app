@@ -8,6 +8,12 @@
  *   Epic         - App Orchard / "Build Apps for Epic"   (PKCE; aud = FHIR base)
  *   Athenahealth - More Disruption Please / Marketplace  (PKCE; tenant in path)
  *   Cerner Oracle Health - Code Console                  (PKCE; tenant in path)
+ *   Veradigm (Allscripts) - Developer Program             (PKCE; tenant in path)
+ *
+ *   The Veradigm entry is a SCAFFOLD profile only - URLs reflect the
+ *   published developer-portal layout but live tenants require a separate
+ *   partnership track and credentialed sandbox. See
+ *   docs/health/ehr-roadmap.md for the production-wiring checklist.
  *
  * Production note: each vendor requires a separate developer-portal app
  * registration. This module ships the technical OAuth/FHIR plumbing only.
@@ -136,6 +142,33 @@ const PROFILES = Object.freeze({
       bundleEntryLimit:  100,
     }),
   }),
+
+  // Scaffold-only profile. Production wiring deferred - see
+  // docs/health/ehr-roadmap.md. Marked maturity: 'scaffold' so the catalog
+  // can render it as "in development" in the UI without an additional
+  // out-of-band feature flag.
+  veradigm: Object.freeze({
+    id:                 'veradigm',
+    name:               'Veradigm (Allscripts)',
+    fhirVersion:        'R4',
+    sandboxBaseUrl:     'https://developer.veradigm.com/fhir/r4',
+    smartLaunchVersion: 'v2',
+    defaultScopes:      Object.freeze([...DEFAULT_FHIR_SCOPES]),
+    systemScopes:       Object.freeze([...SYSTEM_FHIR_SCOPES]),
+    requiresPkce:       true,
+    audClaim:           'fhir-base',
+    appRegistry:        'Veradigm Developer Program',
+    maturity:           'scaffold',
+    tokenEndpointHints: Object.freeze({
+      authorizePath: '/oauth2/authorize',
+      tokenPath:     '/oauth2/token',
+      preferDiscovery: true,
+    }),
+    quirks: Object.freeze({
+      tenantPathSegment: 'practice',
+      bundleEntryLimit:  100,
+    }),
+  }),
 });
 
 const VENDOR_IDS = Object.freeze(Object.keys(PROFILES));
@@ -148,6 +181,7 @@ function listVendors() {
     sandboxBaseUrl: PROFILES[id].sandboxBaseUrl,
     appRegistry:    PROFILES[id].appRegistry,
     smartLaunchVersion: PROFILES[id].smartLaunchVersion,
+    maturity:       PROFILES[id].maturity || 'production',
   }));
 }
 

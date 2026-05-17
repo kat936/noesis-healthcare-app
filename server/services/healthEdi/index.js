@@ -23,6 +23,7 @@ const env       = require('./x12Envelope');
 const edi837p   = require('./edi837p');
 const edi276277 = require('./edi276277');
 const edi835    = require('./edi835');
+const edi270271 = require('./edi270271');
 const partners  = require('./tradingPartner');
 
 const STANDARDS = Object.freeze({
@@ -30,12 +31,23 @@ const STANDARDS = Object.freeze({
   '837P':   edi837p.VERSION_ID,
   '276/277': edi276277.VERSION_ID,
   '835':    edi835.VERSION_ID,
+  '270/271': edi270271.VERSION_ID,  // scaffold
+});
+
+const TRANSACTION_SET_MATURITY = Object.freeze({
+  '837P':    'production',
+  '276':     'production',
+  '277':     'production',
+  '835':     'production',
+  '270':     edi270271.MATURITY,    // 'scaffold'
+  '271':     edi270271.MATURITY,    // 'scaffold'
 });
 
 function getStatus() {
   return {
     standards: STANDARDS,
-    transactionSets: ['837P', '276', '277', '835'],
+    transactionSets: ['837P', '276', '277', '835', '270', '271'],
+    transactionSetMaturity: TRANSACTION_SET_MATURITY,
     transports:      partners.TRANSPORT_TYPES,
     encryptionKeyConfigured: !!process.env.PHI_ENCRYPTION_KEY,
     disclaimer:
@@ -216,5 +228,6 @@ module.exports = {
   edi837p,
   edi276277,
   edi835,
+  edi270271,
   partners,
 };
