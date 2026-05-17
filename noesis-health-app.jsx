@@ -5305,7 +5305,6 @@ function NoesisAppInner() {
     iosIAP.getActiveEntitlements().then(applyEntitlements).catch(() => {});
     const unsub = iosIAP.addSubscriptionUpdatedListener(applyEntitlements);
     return () => { cancelled = true; unsub?.(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleIAPSuccess = useCallback(() => {
