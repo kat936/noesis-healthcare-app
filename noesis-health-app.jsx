@@ -693,7 +693,7 @@ These Terms shall be governed by and construed in accordance with the laws of th
 13. MODIFICATIONS
 We reserve the right to modify these Terms at any time. Continued use of the Platform following notice of changes constitutes acceptance of the modified Terms.
 
-Contact: legal@noesis.io | Athena Core Technologies, Inc.`,
+Contact: support@noesiscfo-io.us | Athena Core Technologies, Inc.`,
 
   privacy: `PRIVACY POLICY
 Noesis Health — Athena Core Technologies
@@ -718,10 +718,10 @@ If you use the Platform to process PHI, that processing is governed by your exec
 We do not sell your personal information. We may share information with: (a) Service Providers: Stripe (payment processing), cloud hosting providers, and analytics partners under data processing agreements; (b) Payers and Clearinghouses: As necessary to submit and process claims on your behalf; (c) Legal Requirements: When required by law, court order, or government authority; (d) Business Transfers: In connection with a merger, acquisition, or sale of assets, subject to confidentiality protections.
 
 6. DATA RETENTION
-Account data is retained for the duration of your subscription plus 3 years. Audit logs are retained for 6 years in compliance with HIPAA. Claims data retention follows applicable state and federal requirements. You may request deletion of non-PHI personal data by contacting privacy@noesis.io.
+Account data is retained for the duration of your subscription plus 3 years. Audit logs are retained for 6 years in compliance with HIPAA. Claims data retention follows applicable state and federal requirements. You may request deletion of non-PHI personal data by contacting support@noesiscfo-io.us.
 
 7. YOUR RIGHTS
-Depending on your jurisdiction, you may have rights to access, correct, or delete your personal information. To exercise these rights, contact privacy@noesis.io. We will respond within 30 days.
+Depending on your jurisdiction, you may have rights to access, correct, or delete your personal information. To exercise these rights, contact support@noesiscfo-io.us. We will respond within 30 days.
 
 8. CALIFORNIA RESIDENTS
 If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA/CPRA), including the right to know, delete, correct, and opt-out of the sale of personal information.
@@ -730,8 +730,8 @@ If you are a California resident, you have additional rights under the Californi
 We maintain a comprehensive information security program including encryption, access controls, intrusion detection, and regular security assessments. No security system is impenetrable; we cannot guarantee absolute security of your data.
 
 10. CONTACT
-Privacy inquiries: privacy@noesis.io
-Data Protection Officer: dpo@noesis.io
+Privacy inquiries: support@noesiscfo-io.us
+Data Protection Officer: support@noesiscfo-io.us
 Athena Core Technologies, Inc. | Legal Department`,
 
   hipaa: `HIPAA & DATA SECURITY NOTICE
@@ -742,7 +742,7 @@ Effective Date: January 1, 2026
 The Health Insurance Portability and Accountability Act of 1996 (HIPAA) and its implementing regulations, including the Privacy Rule (45 CFR Part 164, Subparts A and E) and the Security Rule (45 CFR Part 164, Subparts A and C), may apply to your use of the Noesis Health Platform. If your use of the Platform involves the creation, receipt, maintenance, or transmission of Protected Health Information (PHI) on behalf of a Covered Entity, a Business Associate Agreement (BAA) is legally required between you and Athena Core Technologies prior to such use.
 
 2. BUSINESS ASSOCIATE AGREEMENT
-A BAA is available upon request for Group and Enterprise plan subscribers. To execute a BAA, contact: compliance@noesis.io. Users operating without an executed BAA must not input PHI into the Platform.
+A BAA is available upon request for Group and Enterprise plan subscribers. To execute a BAA, contact: support@noesiscfo-io.us. Users operating without an executed BAA must not input PHI into the Platform.
 
 3. TECHNICAL SAFEGUARDS IMPLEMENTED
 Consistent with the HIPAA Security Rule (45 CFR §164.312), the Platform implements the following technical safeguards:
@@ -776,7 +776,7 @@ In the event of a breach of unsecured PHI affecting your organization, we will n
 7. DISCLAIMER
 The Platform is designed to support your HIPAA compliance efforts but does not guarantee or certify your organization's HIPAA compliance. Compliance is the responsibility of each Covered Entity and Business Associate. This notice does not constitute legal advice. Consult qualified healthcare legal counsel for compliance guidance specific to your organization.
 
-Contact: compliance@noesis.io`,
+Contact: support@noesiscfo-io.us`,
 
   disclaimer: `MEDICAL CLAIMS DISCLAIMER
 Noesis Health — Athena Core Technologies
@@ -806,7 +806,7 @@ Users are solely responsible for ensuring their use of the Platform complies wit
 8. LIMITATION
 Use of this Platform does not establish an attorney-client, physician-patient, or fiduciary relationship between you and Athena Core Technologies. The Platform is a software tool; professional judgment in billing, coding, and clinical practice cannot be replaced by automated analysis.
 
-Contact: support@noesis.io | compliance@noesis.io`,
+Contact: support@noesiscfo-io.us | support@noesiscfo-io.us`,
 
   billing: `BILLING TERMS
 Noesis Health — Athena Core Technologies
@@ -816,7 +816,7 @@ Effective Date: January 1, 2026
 Noesis Health is available on the following subscription tiers:
 - Solo Plan: $299/month (single provider, individual billing operations)
 - Group Plan: $799/month (practice groups, multi-provider organizations)
-- Enterprise Plan: Custom pricing (contact sales@noesis.io)
+- Enterprise Plan: Custom pricing (contact support@noesiscfo-io.us)
 
 Annual billing is available at approximately 17% discount (equivalent to approximately 2 months free). Annual subscriptions are billed in full at the start of each billing period.
 
@@ -833,7 +833,7 @@ Where applicable, free trial periods do not require payment information unless e
 You may upgrade your subscription plan at any time; upgraded access is available immediately and the price difference is prorated for the remainder of the billing period. Downgrades take effect at the start of the next billing period.
 
 6. REFUND POLICY
-All subscription fees are non-refundable except: (a) where required by applicable consumer protection law; (b) billing errors attributable to Athena Core Technologies. Requests for billing error corrections must be submitted within 30 days of the charge to billing@noesis.io.
+All subscription fees are non-refundable except: (a) where required by applicable consumer protection law; (b) billing errors attributable to Athena Core Technologies. Requests for billing error corrections must be submitted within 30 days of the charge to support@noesiscfo-io.us.
 
 7. TAXES
 Prices listed do not include applicable taxes. You are responsible for all sales, use, value-added, or similar taxes imposed by applicable law on your subscription.
@@ -845,12 +845,12 @@ Certain Enterprise plans include usage-based overage charges for claim volumes e
 If payment fails, we will attempt to collect payment for up to 7 days using the payment method on file. After 7 days of failed payment, your account may be suspended. Data is retained for 30 days after suspension; after 30 days, data may be permanently deleted subject to legal retention requirements.
 
 10. ENTERPRISE BILLING
-Enterprise organizations may be eligible for purchase order (PO)-based billing, net payment terms, and custom enterprise agreements. Contact sales@noesis.io for enterprise billing arrangements.
+Enterprise organizations may be eligible for purchase order (PO)-based billing, net payment terms, and custom enterprise agreements. Contact support@noesiscfo-io.us for enterprise billing arrangements.
 
 11. DISPUTES
-Billing disputes must be submitted in writing to billing@noesis.io within 30 days of the disputed charge. Disputes submitted after 30 days will not be eligible for credit or refund.
+Billing disputes must be submitted in writing to support@noesiscfo-io.us within 30 days of the disputed charge. Disputes submitted after 30 days will not be eligible for credit or refund.
 
-Contact: billing@noesis.io | Athena Core Technologies, Inc.`,
+Contact: support@noesiscfo-io.us | Athena Core Technologies, Inc.`,
 };
 
 // ============ SHARED COMPONENTS ============
@@ -1077,7 +1077,7 @@ const ConsentGate = ({ onConsentsComplete, token, email }) => {
         <LegalDocumentModal
           document={{
             title: selectedDocument.title,
-            content: LEGAL_CONTENT[selectedDocument.key] || `${selectedDocument.title}\n\nPlease contact legal@noesis.io for the full text of this document.`,
+            content: LEGAL_CONTENT[selectedDocument.key] || `${selectedDocument.title}\n\nPlease contact support@noesiscfo-io.us for the full text of this document.`,
           }}
           onClose={() => setSelectedDocument(null)}
         />
@@ -1109,7 +1109,7 @@ const LegalSection = () => {
       setSelectedDocument({ title: doc.label, content });
     } catch {
       // Serve inline content — always available even without a running server
-      setSelectedDocument({ title: doc.label, content: LEGAL_CONTENT[doc.key] || `${doc.label}\n\nContact legal@noesis.io for the full text of this document.` });
+      setSelectedDocument({ title: doc.label, content: LEGAL_CONTENT[doc.key] || `${doc.label}\n\nContact support@noesiscfo-io.us for the full text of this document.` });
     } finally {
       setLoadingDoc(null);
     }
@@ -1155,7 +1155,7 @@ const LegalSection = () => {
           <Info size={18} className="text-teal-400" /> Important Notice
         </h3>
         <p className="text-slate-300 text-sm leading-relaxed">
-          Noesis Health is provided by Athena Core Technologies for healthcare billing and claims management. The Platform implements HIPAA-aligned security measures including AES-256-GCM encryption, role-based access controls, session timeout enforcement, PHI audit logging, and TLS 1.3 data transmission. A Business Associate Agreement (BAA) is available for Group and Enterprise subscribers. Users are responsible for their own HIPAA compliance obligations and applicable federal and state laws. For legal inquiries, contact <span className="text-teal-400">legal@noesis.io</span>.
+          Noesis Health is provided by Athena Core Technologies for healthcare billing and claims management. The Platform implements HIPAA-aligned security measures including AES-256-GCM encryption, role-based access controls, session timeout enforcement, PHI audit logging, and TLS 1.3 data transmission. A Business Associate Agreement (BAA) is available for Group and Enterprise subscribers. Users are responsible for their own HIPAA compliance obligations and applicable federal and state laws. For legal inquiries, contact <span className="text-teal-400">support@noesiscfo-io.us</span>.
         </p>
       </div>
     </div>
@@ -3441,7 +3441,7 @@ const ContractsModule = ({ plan, token }) => {
 const generateSecurityAlerts = () => [
   { id: 1, severity: 'CRITICAL', title: 'Failed Login Attempts Spike', description: 'Detected 12 failed login attempts from IP 203.0.113.45 in last 15 minutes', timestamp: '2 minutes ago' },
   { id: 2, severity: 'HIGH', title: 'Unusual Access Pattern', description: 'User john.provider accessed 847 patient records (average: 12/hour)', timestamp: '1 hour ago' },
-  { id: 3, severity: 'MEDIUM', title: 'SSL Certificate Expiring Soon', description: 'TLS certificate for api.noesis.io expires in 14 days', timestamp: '6 hours ago' },
+  { id: 3, severity: 'MEDIUM', title: 'SSL Certificate Expiring Soon', description: 'TLS certificate for api.noesiscfo-io.us expires in 14 days', timestamp: '6 hours ago' },
 ];
 
 const generateActiveSessions = () => [
@@ -3566,7 +3566,7 @@ const SecurityCenterModule = ({ plan, isMasked, setIsMasked }) => {
         <AlertTriangle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
         <div className="text-sm">
           <p className="font-semibold text-amber-300 mb-1">HIPAA-Aligned Security Measures</p>
-          <p className="text-amber-200/80">This platform implements security controls aligned with HIPAA Privacy and Security Rules (45 CFR §164.312): AES-256-GCM encryption at rest, TLS 1.2+ in transit, role-based access control, full audit trail with SHA-256 input fingerprints, and inactivity session timeout. Noesis Health is HIPAA-aligned, not HIPAA-certified (no such certification exists). A Business Associate Agreement is available to Group and Enterprise subscribers — contact compliance@noesis.io to execute. Organizations remain responsible for their own HIPAA compliance assessment.</p>
+          <p className="text-amber-200/80">This platform implements security controls aligned with HIPAA Privacy and Security Rules (45 CFR §164.312): AES-256-GCM encryption at rest, TLS 1.2+ in transit, role-based access control, full audit trail with SHA-256 input fingerprints, and inactivity session timeout. Noesis Health is HIPAA-aligned, not HIPAA-certified (no such certification exists). A Business Associate Agreement is available to Group and Enterprise subscribers — contact support@noesiscfo-io.us to execute. Organizations remain responsible for their own HIPAA compliance assessment.</p>
         </div>
       </div>
 
@@ -4907,10 +4907,10 @@ const PricingPage = ({ token, currentPlan, onUpgrade, onIAPSuccess }) => {
       if (window.Capacitor?.isNativePlatform?.()) {
         try {
           const { Browser } = await import('@capacitor/browser');
-          await Browser.open({ url: 'mailto:sales@noesis.io?subject=Enterprise%20Inquiry' });
-        } catch { window.location.href = 'mailto:sales@noesis.io?subject=Enterprise%20Inquiry'; }
+          await Browser.open({ url: 'mailto:support@noesiscfo-io.us?subject=Enterprise%20Inquiry' });
+        } catch { window.location.href = 'mailto:support@noesiscfo-io.us?subject=Enterprise%20Inquiry'; }
       } else {
-        window.location.href = 'mailto:sales@noesis.io?subject=Enterprise%20Inquiry';
+        window.location.href = 'mailto:support@noesiscfo-io.us?subject=Enterprise%20Inquiry';
       }
       return;
     }
