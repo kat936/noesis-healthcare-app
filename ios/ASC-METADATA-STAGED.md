@@ -222,11 +222,6 @@ BUILT FOR HEALTHCARE
   • Zero PHI on device — your data lives encrypted on the backend, not
     in the app's local storage.
 
-PRICING
-  Solo:      $299/month, includes 500 claims, up to 3 providers
-  Group:     $799/month, includes 2,000 claims, up to 20 provider seats
-  Enterprise: Custom — contact sales@noesis.io for volume pricing
-
 Subscriptions are billed through Stripe in a secure external browser
 session and managed in your account billing portal. Cancel anytime
 from your account.
