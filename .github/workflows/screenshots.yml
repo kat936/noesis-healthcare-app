@@ -43,7 +43,7 @@ jobs:
 
       - name: Setup Node.js
         # Match the iOS build runner's Node version (Capacitor 8 minimum).
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'

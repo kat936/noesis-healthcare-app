@@ -29,7 +29,7 @@ jobs:
         # Capacitor 8 (bumped in #30) requires Node 20.19+ or 22+; we pin
         # 22 to track the active LTS and unblock @capacitor/cli installs
         # that probe `engines.node`.
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
