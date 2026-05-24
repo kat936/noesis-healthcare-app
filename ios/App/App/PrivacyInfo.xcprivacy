@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Noesis Health — App-level Privacy Manifest
+        © 2026 Athena Core Technologies, Inc.
+
+        Apple began enforcing app-level PrivacyInfo.xcprivacy submission
+        for App Store builds in May 2024 (per Apple Developer post
+        "Get ready to publish… apps and SDKs with privacy manifests").
+        Capacitor and its plugins ship their own privacy manifests
+        bundled with each pod, but the host app must also declare:
+
+          1. Required Reason API categories (NSPrivacyAccessedAPITypes)
+          2. Data types collected (NSPrivacyCollectedDataTypes)
+          3. Tracking domains (NSPrivacyTrackingDomains)
+          4. Whether the app tracks users (NSPrivacyTracking)
+
+        Sources of truth this file mirrors:
+          - ios/ASC-METADATA-STAGED.md §4 "App Privacy (Nutrition Labels)"
+          - HIPAA-COMPLIANCE.md (technical safeguards posture)
+          - ios/App/App/Info.plist (no NSUserTrackingUsageDescription)
+
+        IMPORTANT: declarations must match the App Store Connect privacy
+        nutrition labels Kat fills in ASC. If those change, update both.
+    -->
+
+    <!-- ── Required Reason API categories ──────────────────────────────
+         The host app itself does not directly call Required Reason APIs;
+         Capacitor and its plugins do, and each pod ships its own
+         declaration. We declare the empty set here, which is valid per
+         Apple's spec — the merged manifest at archive time is the union
+         of every embedded manifest. If the JSX bundle (via Capacitor's
+         Filesystem, Preferences, or Network plugins) starts using
+         additional Required Reason APIs, add the appropriate category
+         + reason code from
+         https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/describing_use_of_required_reason_api
+    -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array/>
+
+    <!-- ── Collected Data Types ────────────────────────────────────────
+         Mirrors ASC-METADATA-STAGED.md §4. Under IOS_DEMO_ONLY the
+         shipped iOS bundle does NOT exercise any of these collection
+         paths (every API call is short-circuited). Apple's policy is
+         that the manifest reflects what the binary will collect once
+         activated, so we declare the production data flow honestly.
+
+         Codes referenced in NSPrivacyCollectedDataType:
+           - NSPrivacyCollectedDataTypeEmailAddress
+           - NSPrivacyCollectedDataTypeName
+           - NSPrivacyCollectedDataTypeUserID
+           - NSPrivacyCollectedDataTypeOtherUserContent
+           - NSPrivacyCollectedDataTypeOtherFinancialInfo
+           - NSPrivacyCollectedDataTypeSensitiveInfo
+           - NSPrivacyCollectedDataTypeCrashData
+           - NSPrivacyCollectedDataTypePerformanceData
+           - NSPrivacyCollectedDataTypeOtherDiagnosticData
+           - NSPrivacyCollectedDataTypeProductInteraction
+
+         Purpose codes:
+           - NSPrivacyCollectedDataTypePurposeAppFunctionality
+           - NSPrivacyCollectedDataTypePurposeAnalytics
+           - NSPrivacyCollectedDataTypePurposeCustomerSupport
+    -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+                <string>NSPrivacyCollectedDataTypePurposeCustomerSupport</string>
+            </array>
+        </dict>
+
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeName</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeUserID</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+
+        <!-- Healthcare claim metadata + supporting clinical documents.
+             Apple's "Sensitive Info" includes health and medical
+             condition data; we declare it here so the production gate
+             stays compliant once IOS_DEMO_ONLY flips off. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeSensitiveInfo</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <!-- Billing email + plan tier + claim dollar amounts. We never
+             see card data (Stripe is the data processor). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherFinancialInfo</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <!-- Claim documents the user uploads as supporting evidence. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <!-- Not linked to user identity. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeCrashData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypePerformanceData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- ── Tracking ────────────────────────────────────────────────────
+         Noesis Health does NOT track users across other companies' apps
+         and websites. Info.plist intentionally omits
+         NSUserTrackingUsageDescription. ASC nutrition labels show
+         Tracking: No. -->
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <key>NSPrivacyTracking</key>
+    <false/>
+</dict>
+</plist>

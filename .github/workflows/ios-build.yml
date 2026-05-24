@@ -63,9 +63,15 @@ jobs:
             # ITSAppUsesNonExemptEncryption after `cap add` regenerates a
             # vanilla one. (ASC-METADATA-STAGED.md Followup B.)
             [ -f "ios/App/App/Info.plist" ] && cp "ios/App/App/Info.plist" /tmp/ios-preserve/Info.plist || true
+            # Preserve the app-level PrivacyInfo.xcprivacy. Apple began
+            # enforcing app-level privacy manifests for App Store builds
+            # in May 2024; Capacitor's `cap add ios` does not create one,
+            # so we restore from the canonical copy in the repo.
+            [ -f "ios/App/App/PrivacyInfo.xcprivacy" ] && cp "ios/App/App/PrivacyInfo.xcprivacy" /tmp/ios-preserve/PrivacyInfo.xcprivacy || true
             rm -rf ios
             npx cap add ios
             [ -f "/tmp/ios-preserve/SUBMISSION.md" ] && cp /tmp/ios-preserve/SUBMISSION.md ios/SUBMISSION.md || true
+            [ -f "/tmp/ios-preserve/PrivacyInfo.xcprivacy" ] && cp /tmp/ios-preserve/PrivacyInfo.xcprivacy ios/App/App/PrivacyInfo.xcprivacy || true
             echo "iOS scaffold recreated with Capacitor default entitlements"
           fi
 
