@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@capacitor/browser": "^8.0.3",
-    "@capacitor/core": "^8.3.1",
+    "@capacitor/core": "^8.3.4",
     "@capacitor/filesystem": "^8.1.2",
     "@sentry/react": "^7.120.4",
     "decimal.js": "^10.4.3",
@@ -28,9 +28,9 @@
     "recharts": "^2.13.0"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.3.1",
-    "@capacitor/cli": "^8.3.1",
-    "@capacitor/ios": "^8.3.1",
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
